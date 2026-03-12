@@ -1,13 +1,11 @@
-# library(devtools)
-# devtools::install_github("hiweller/countcolors")
+# This script handles ONLY the processing of occlusion images using countcolors.
 
-load("../OcclusionData.RData")
-# 
+ 
 library(tidyverse)
-library(scales)
-# library(countcolors)
+# library(scales)
+library(countcolors)
 # 
-# 
+# Color matrix from eyedropper tool color sampling of yellow background in a variety of images to account for different lighting & shadows.
 colorMatrix <- matrix(ncol = 3, c(
     0.533333333333333, 0.376470588235294, 0, 
     0.56078431372549, 0.345098039215686, 0, 
@@ -40,7 +38,7 @@ colorMatrix <- matrix(ncol = 3, c(
 # ColorCount <- countColorsInDirectory(".", color.range = "spherical", center = colorMatrix, radius = rep(.1, length(colorMatrix[,1])), target.color = "magenta", return.indicator = T, save.indicator = "./Masked")
 
 #setwd("..")
-# save.image("../OcclusionData.RData")
+# save.image("data/OcclusionData.RData")
 
 OcclDF <- map_dfr(ColorCount, ~tibble(Openness = .x[2])) %>%
     mutate(Image = names(ColorCount)) %>%

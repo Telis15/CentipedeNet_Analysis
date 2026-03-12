@@ -1,18 +1,14 @@
-##**Confirmed to be functional 9/18/2025. Made minor adjustments based on ggplot2 update**
+##**Confirmed to be functional 3/6/2026. Made minor adjustments to make more sharable on GitHub**
 # This script does not modify any pre-existing dataframes from WrangledData.RData and is not necessary to run prior to "3_Model Selection.R"
 # It primarily synthesizes, summarizes, and visualizes data created in "1_DataWrangling.R", with the exception of the iNEXT analysis that takes place in this script.
 
 # Load Packages & Pre-Wrangled Data (From 1_DataWrangling.R) --------------
 library(iNEXT)
 library(vegan)
-library(reshape2)
-library(plyr)
 library(cowplot)
-library(gt)
-library(gtExtras)
 library(eulerr)
 library(tidyverse)
-library(devtools)
+# library(devtools)
 library(openxlsx2)
 library(extrafont)
 
@@ -31,28 +27,15 @@ SampleData <- SampleData %>%
 
 # This matrix includes ALL valid samples and is used for calculating 
 # the true total diversity (87 species), NOT for iNEXT.
-StudyWide_Incidence_Matrix <- dcast(MergedData %>% filter(Effort != 0), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>%
+StudyWide_Incidence_Matrix <- MergedData %>% 
+  filter(Effort != 0) %>%
+  pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>%
   mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
   filter(!is.na(Species)) %>%
   column_to_rownames(var = "Species")
 
-# Set the global ggplot2 theme
-theme_set(
-  theme_classic(
-    base_family = "serif", 
-    base_size = 14
-  ) +
-    theme(
-      text = element_text(colour = "black"),
-      panel.border = element_rect(fill = NA, colour = "black", linewidth = 1)
-    )
-)
-
-# Set the global discrete color and fill palettes
-options(
-  ggplot2.discrete.colour = palette.colors(n = 8, palette = "Tableau"),
-  ggplot2.discrete.fill = palette.colors(n = 8, palette = "Tableau")
-)
+# Source the global ggplot2 theme and aesthetic scales
+source("scripts/0_PlotTheme.R")
 
 # Load Windows fonts from device and set serif as default.
 loadfonts(device = "win")
@@ -67,7 +50,7 @@ set_null_device(cairo_pdf)
 Tables <- list()
 
 # Species List
-Tables$`Species List` <- merge(GearSpeciesGrid, SpeciesList[, c("Species", "FBname")], .by = Species) %>%
+Tables$`Species List` <- left_join(GearSpeciesGrid, SpeciesList[, c("Species", "FBname")], by = "Species") %>%
   relocate(Species, "Common Name" = FBname)
 
 # Site Summary
@@ -150,7 +133,7 @@ SampleData %>%
 #                      scale_x_continuous(expand = c(0.01, 0.01)) + # Reduce padding
 #                      scale_y_continuous(expand = c(0.01, 0.01), labels = scales::percent) +
 #                      # ggiNEXT seems to ignore most ggplot global settings
-#                      theme_classic(base_family = "serif", base_size = 14) +
+#                      theme_classic(base_family = "serif", base_size = 9) +
 #                      theme(
 #                        panel.background = element_rect(fill = "transparent"),
 #                        legend.background = element_rect(fill = "transparent"),
@@ -166,7 +149,7 @@ SampleData %>%
 #                        shape = guide_none(),
 #                        color = guide_legend(override.aes = list(
 #                          shape = GearShapes[c("Cast Net", "Centipede Net", "Seine")],
-#                          size = 2.5,
+#                          size = 2,
 #                          linetype = c(GearLineTypes$`Cast Net`, GearLineTypes$`Centipede Net`, GearLineTypes$Seine),
 #                          fill = NA,
 #                          linewidth = 0.5
@@ -199,13 +182,13 @@ SampleData %>%
 # If it's a grid you're lookin' for:
 # Grid_Name <- plot_grid(Plot_Name1, Plot_Name2, nrow = 2, labels = Letters(), label_x = 0.11, align = "hv", label_fontface = "plain", label_size = 12, label_fontfamily = "serif")
 
-# ggsave(plot = Plot_Name, "../Figures & Tables/iNEXT Plots/Plot_Name.png", width = 6, height = 4, units = "in")
+# ggsave(plot = Plot_Name, "output/plots/Plot_Name.png", width = 6, height = 4, units = "in")
 
 
 # Sample Coverage Plots
 # --- Streamlining: Create a common theme for both plots ---
 common_theme <- function() {
-  theme_classic(base_family = "serif", base_size = 14) +
+  theme_classic(base_family = "serif", base_size = 9) +
     theme(
       panel.background = element_rect(fill = "transparent"),
       legend.background = element_rect(fill = "transparent"),
@@ -234,7 +217,7 @@ p_singles <- ggiNEXT(Gear_Out_Single_Raw, type = 2, color.var = "Assemblage", se
     shape = "none",
     color = guide_legend(override.aes = list(
       shape = GearShapes[c("Cast Net", "Centipede Net", "Seine")],
-      size = 2.5,
+      size = 2,
       stroke = 1,
       linewidth = 0.4,
       alpha = 0.7,
@@ -287,7 +270,7 @@ p_combos <- ggiNEXT(Gear_Out_Combos_Raw, type = 2, color.var = "Assemblage", se 
     shape = "none",
     color = guide_legend(override.aes = list(
       shape = GearShapes[c("All Gears", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine")],
-      size = 2.5,
+      size = 2,
       stroke = 1,
       linewidth = 0.4,
       alpha = 0.7,
@@ -326,23 +309,24 @@ Combos_Coverage_Plot <- ggplot_gtable(gb_combos)
 
 # --- Combine Plots ---
 Coverage_Grid <-
-  plot_grid(Singles_Coverage_Plot, Combos_Coverage_Plot, nrow = 1, labels = c("Individual Gears", "Gear Combinations"), label_x = 0.05, align = "hv", rel_widths = c(1.03, 1), label_fontface = "plain", label_size = 12, label_fontfamily = "serif")
+  plot_grid(Singles_Coverage_Plot, Combos_Coverage_Plot, nrow = 1, labels = c("Individual Gears", "Gear Combinations"), label_x = 0.05, align = "hv", rel_widths = c(1.03, 1), label_fontface = "plain", label_size = 9, label_fontfamily = "serif")
 
 # Display the final plot
 plot(Coverage_Grid)
 
-# # --- Save the Final Plot for Publication ---
-# ggsave(plot = Coverage_Grid, 
-#        filename = "../Figures & Tables New/iNEXT Plots/Coverage_2Panel_Final_Fig6.eps", 
-#        device = cairo_ps, 
-#        width = 6, 
-#        height = 4, 
-#        units = "in")
-# ggsave(plot = Coverage_Grid, 
-#        filename = "../Figures & Tables New/iNEXT Plots/Coverage_2Panel_Final_Fig6.png", 
-#        width = 6, 
-#        height = 4, 
-#        units = "in")
+# --- Save the Final Plot for Publication ---
+ggsave(plot = Coverage_Grid, 
+       filename = "output/plots/Coverage_2Panel_Final_Fig6.eps", 
+       device = cairo_ps, 
+       width = 5.62, 
+       height = 3.75, 
+       units = "in")
+ggsave(plot = Coverage_Grid, 
+       filename = "output/plots/Coverage_2Panel_Final_Fig6.png", 
+       width = 5.62, 
+       height = 3.75, 
+       units = "in",
+       dpi = 600)
 
 
 # All q Plot | Diversity Accumulation Curve --------------------------------------------------------------
@@ -353,7 +337,7 @@ p <- ggiNEXT(Gear_Out_Raw, type = 1, se = TRUE, facet.var = "Order.q", color.var
   scale_color_manual(values = GearColorsAll(), aesthetics = c("colour", "fill")) +
   scale_x_continuous(expand = c(0.01, 0.01)) + # Remove padding
   scale_y_continuous(expand = c(0.01, 0.01)) +
-  theme_classic(base_family = "serif", base_size = 14) +
+  theme_classic(base_family = "serif", base_size = 9) +
   theme(
     panel.background = element_rect(fill = "transparent"),
     legend.background = element_rect(fill = "transparent"), 
@@ -369,7 +353,7 @@ p <- ggiNEXT(Gear_Out_Raw, type = 1, se = TRUE, facet.var = "Order.q", color.var
     shape = "none",
     color = guide_legend(override.aes = list(
       shape = GearShapes,
-      size = 2.5,
+      size = 2,
       stroke = 1,
       linewidth = 0.4,
       alpha = 1,
@@ -414,18 +398,19 @@ All_q_Plot <- ggplot_gtable(gb)
 # Display the plot
 plot(All_q_Plot)
 
-# # --- Save the Final Plot for Publication --- Figure 9
-# ggsave(plot = All_q_Plot, 
-#        filename = "../Figures & Tables New/iNEXT Plots/All_q_Plot_Final.eps", 
-#        device = cairo_ps,
-#        width = 6, 
-#        height = 4, 
-#        units = "in")
-# ggsave(plot = All_q_Plot, 
-#        filename = "../Figures & Tables New/iNEXT Plots/All_q_Plot_Final.png", 
-#        width = 6, 
-#        height = 4, 
-#        units = "in")
+# --- Save the Final Plot for Publication --- Figure 9
+ggsave(plot = All_q_Plot, 
+       filename = "output/plots/All_q_Plot_Final.eps", 
+       device = cairo_ps,
+       width = 5.62, 
+       height = 3.75, 
+       units = "in")
+ggsave(plot = All_q_Plot, 
+       filename = "output/plots/All_q_Plot_Final.png", 
+       width = 5.62, 
+       height = 3.75, 
+       units = "in",
+       dpi = 600)
 
 # ## Testing Type 3 Plot:
 # # All q Plot | Diversity Accumulation Curve --------------------------------------------------------------
@@ -436,7 +421,7 @@ plot(All_q_Plot)
 #   scale_color_manual(values = GearColorsAll(), aesthetics = c("colour", "fill")) +
 #   scale_x_continuous(expand = c(0.01, 0.01), labels = scales::percent) + # Remove padding
 #   scale_y_continuous(expand = c(0.01, 0.01)) +
-#   theme_classic(base_family = "serif", base_size = 14) +
+#   theme_classic(base_family = "serif", base_size = 9) +
 #   theme(
 #     panel.background = element_rect(fill = "transparent"),
 #     legend.background = element_rect(fill = "transparent"), 
@@ -452,7 +437,7 @@ plot(All_q_Plot)
 #     shape = "none",
 #     color = guide_legend(override.aes = list(
 #       shape = GearShapes,
-#       size = 2.5,
+#       size = 2,
 #       stroke = 1,
 #       linewidth = 0.4,
 #       alpha = 1,
@@ -499,13 +484,13 @@ plot(All_q_Plot)
 # 
 # # --- Save the Final Plot for Publication --- Figure 9
 # ggsave(plot = All_q_Plot, 
-#        filename = "../Figures & Tables New/iNEXT Plots/Type3_Curve.eps", 
+#        filename = "output/plots/Type3_Curve.eps", 
 #        device = cairo_ps,
 #        width = 6, 
 #        height = 4, 
 #        units = "in")
 # ggsave(plot = All_q_Plot, 
-#        filename = "../Figures & Tables New/iNEXT Plots/Type3_Curve.png", 
+#        filename = "output/plots/Type3_Curve.png", 
 #        width = 6, 
 #        height = 4, 
 #        units = "in")
@@ -538,27 +523,27 @@ Tables$`iNEXT Estimates` <-
   add_row(.after = 7)
 
 # Gear Combo Diversity
-Gear_Diversity <- merge(
-  merge(
-    Gear_Out_Raw$AsyEst %>%
+Gear_Diversity <- Gear_Out_Raw$AsyEst %>%
       as.data.frame() %>%
       filter(Diversity == "Species richness") %>%
       select(Assemblage, Observed) %>%
-      rename(Gear = Assemblage, Richness = Observed),
+      rename(Gear = Assemblage, Richness = Observed) %>%
+  left_join(
     Gear_Out_Raw$AsyEst %>%
       as.data.frame() %>%
       filter(Diversity == "Shannon diversity") %>%
       select(Assemblage, Observed) %>%
       rename(Gear = Assemblage, Shannon = Observed),
-    .by = Gear
-  ),
-  Gear_Out_Raw$AsyEst %>%
-    as.data.frame() %>%
-    filter(Diversity == "Simpson diversity") %>%
-    select(Assemblage, Observed) %>%
-    rename(Gear = Assemblage, Simpson = Observed),
-  .by = Gear
-)
+    by = "Gear"
+  ) %>%
+  left_join(
+    Gear_Out_Raw$AsyEst %>%
+      as.data.frame() %>%
+      filter(Diversity == "Simpson diversity") %>%
+      select(Assemblage, Observed) %>%
+      rename(Gear = Assemblage, Simpson = Observed),
+    by = "Gear"
+  )
 
 # Summary data by gear
 
@@ -567,12 +552,12 @@ Gear_Diversity <- merge(
 # by pooling all valid samples, regardless of site-visit matching.
 
 # --- First, create all the correct (un-paired) incidence matrices for this table ---
-Matrix_Cast <- dcast(MergedData %>% filter(Gear == "Cast Net" & Effort != 0), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cent <- dcast(MergedData %>% filter(Gear == "Centipede Net" & Effort != 0 & SampleID != 'Tiv2_Cent'), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Seine <- dcast(MergedData %>% filter(Gear == "Seine" & Effort != 0), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cast_Cent <- dcast(MergedData %>% filter((Gear == "Cast Net" | Gear == "Centipede Net") & Effort != 0 & SampleID != 'Tiv2_Cent'), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cast_Seine <- dcast(MergedData %>% filter((Gear == "Cast Net" | Gear == "Seine") & Effort != 0), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cent_Seine <- dcast(MergedData %>% filter((Gear == "Centipede Net" | Gear == "Seine") & Effort != 0 & SampleID != 'Tiv2_Cent'), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Cast <- MergedData %>% filter(Gear == "Cast Net" & Effort != 0) %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Cent <- MergedData %>% filter(Gear == "Centipede Net" & Effort != 0 & SampleID != 'Tiv2_Cent') %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Seine <- MergedData %>% filter(Gear == "Seine" & Effort != 0) %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Cast_Cent <- MergedData %>% filter((Gear == "Cast Net" | Gear == "Centipede Net") & Effort != 0 & SampleID != 'Tiv2_Cent') %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Cast_Seine <- MergedData %>% filter((Gear == "Cast Net" | Gear == "Seine") & Effort != 0) %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Cent_Seine <- MergedData %>% filter((Gear == "Centipede Net" | Gear == "Seine") & Effort != 0 & SampleID != 'Tiv2_Cent') %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
 # Matrix_All_Gears is your existing 'StudyWide_Incidence_Matrix' (which is correct)
 
 # --- Now, build the 7-row table of total stats ---
@@ -618,7 +603,7 @@ total_stats_final <- bind_rows(
 )
 
 # --- 2. Create the final table by merging MEAN and TOTAL stats ---
-Tables$`Gear Study Summary` <- merge(
+Tables$`Gear Study Summary` <- full_join(
   bind_rows(
     SampleData %>%
       summarize(
@@ -630,14 +615,14 @@ Tables$`Gear Study Summary` <- merge(
       ),
     SampleData %>%
       summarize(
-        Gear = "All Gears", "Total Samples" = length(Richness), "Mean Effort" = NA,
-        "Mean Catch (n)" = mean(Abundance, na.rm = T), "Mean CPUE" = NA,
+        Gear = "All Gears", "Total Samples" = length(Richness), "Mean Effort" = NA_real_,
+        "Mean Catch (n)" = mean(Abundance, na.rm = T), "Mean CPUE" = NA_real_,
         "Mean Biomass (g)" = mean(Biomass, na.rm = T), "Mean Richness" = mean(Richness, na.rm = T),
         "Mean Shannon Diversity" = mean(Shannon, na.rm = T), "Mean Simpson Diversity" = mean(Simpson, na.rm = T)
       )
   ),
   total_stats_final,
-  by = "Gear", all = TRUE, sort = FALSE
+  by = "Gear"
 ) %>%
   mutate("Effort Unit" = c("Throws", "Net Group Hours", "Hauls", NA, NA, NA, NA), .after = "Mean Effort") %>% 
   arrange(match(Gear, c("Cast Net", "Centipede Net", "Seine", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine", "All Gears"))) %>%
@@ -649,15 +634,15 @@ ggplot(MergedData %>% filter(!is.na(StandardLength_mm)), aes(x = Gear, y = Stand
   stat_boxplot(geom = "errorbar", width = 0.2) +
   geom_boxplot(outlier.shape = 16, outlier.size = 2, alpha = 0.75) +
   geom_text(
-    data = aggregate(StandardLength_mm ~ Gear, data = MergedData, FUN = mean, na.rm = TRUE),
+    data = MergedData %>% group_by(Gear) %>% summarize(StandardLength_mm = mean(StandardLength_mm, na.rm = TRUE)),
     aes(label = paste("Mean =", round(StandardLength_mm, 1)), y = StandardLength_mm, family = "serif"),
     vjust = c(1.2, 0.1, 0.2), color = "black"
   ) +
   scale_fill_manual(values = GearColors()[2:4]) +
   labs(y = "Standard Length (mm)") +
-  theme_classic(base_size = 14, base_family = "serif") +
+  theme_classic(base_size = 9, base_family = "serif") +
   theme(axis.title.x = element_blank(), legend.position = "none")
-# ggsave("../Figures & Tables New/Length_Gear_Boxplot.png", width = 6, height = 6)
+# ggsave("output/plots/Length_Gear_Boxplot.png", width = 6, height = 6)
 
 
 # Boxplot of weights by gear **Includes 'AverageWeight_g' for batch-measured catch for samples with >30 of one species. That only occurred in Seines.
@@ -665,15 +650,15 @@ ggplot(MergedData %>% mutate(Weight_g = if_else(is.na(Weight_g), AverageWeight_g
   stat_boxplot(geom = "errorbar", width = 0.2) +
   geom_boxplot(outlier.shape = 16, outlier.size = 2) +
   geom_text(
-    data = aggregate(Weight_g ~ Gear, data = MergedData %>% mutate(Weight_g = if_else(is.na(Weight_g), AverageWeight_g, Weight_g)) %>% select(Gear, Weight_g) %>% na.omit(), FUN = mean, na.rm = TRUE),
+    data = MergedData %>% mutate(Weight_g = if_else(is.na(Weight_g), AverageWeight_g, Weight_g)) %>% select(Gear, Weight_g) %>% na.omit() %>% group_by(Gear) %>% summarize(Weight_g = mean(Weight_g, na.rm = TRUE)),
     aes(label = paste("Mean =", round(Weight_g, 1)), y = Weight_g, family = "serif"),
     vjust = c(3.2, 3.5, 2), color = "black"
   ) +
   scale_fill_manual(values = GearColors()[2:4]) +
   labs(y = "Weight (g)") +
-  theme_classic(base_size = 14, base_family = "serif") +
+  theme_classic(base_size = 9, base_family = "serif") +
   theme(axis.title.x = element_blank(), legend.position = "none")
-# ggsave("../Figures & Tables New/Weight_Gear_Boxplot.png", width = 6, height = 6)
+# ggsave("output/plots/Weight_Gear_Boxplot.png", width = 6, height = 6)
 
 
 # Create two-panel figure of violin plot & scatterplot (length x weight by gear)
@@ -717,7 +702,7 @@ Violin_Plot_SL <- ggplot(data = plot_data, aes(x = Gear, y = StandardLength_mm, 
     size = 3, # Use a standard relative size
     y = -30     # Position the text below the plot
   ) +
-  theme_classic(base_size = 14, base_family = "serif") +
+  theme_classic(base_size = 9, base_family = "serif") +
   theme(
     legend.position = "none", 
     axis.text = element_text(size = 9, color = "black")
@@ -728,30 +713,31 @@ plot(Violin_Plot_SL)
 
 # --- 3. Save the plot in the correct format for publication ---
 ggsave(plot = Violin_Plot_SL, 
-       filename = "../Figures & Tables New/Length_Gear_Violin_SL.eps", 
+       filename = "output/plots/Length_Gear_Violin_SL.eps", 
        device = cairo_ps,
-       width = 4, 
-       height = 4, 
+       width = 2.75, 
+       height = 3.66, 
        units = "in")
 ggsave(plot = Violin_Plot_SL, 
-       filename = "../Figures & Tables New/Length_Gear_Violin_SL.png", 
-       width = 4, 
-       height = 4, 
-       units = "in")
+       filename = "output/plots/Length_Gear_Violin_SL.png", 
+       width = 2.75, 
+       height = 3.66, 
+       units = "in",
+       dpi = 600)
 
 # # Scatterplot length x weight by gear
 #  # ScatterPlot_LW <-
 #    ggplot(MergedData %>% filter(!is.na(Weight_g)), aes(x = StandardLength_mm, y = Weight_g, color = Gear)) +
 #     scale_color_manual(values = GearColors()) +
 #    scale_y_continuous(limits = c(-20, NA)) +
-#     geom_point(alpha = 0.75) +
+#     geom_point(size = 2, alpha = 0.75) +
 #     labs(x = "Standard Length (mm)", y = "Weight (g)") +
-#     theme_classic(base_size = 14, base_family = "serif") +
+#     theme_classic(base_size = 9, base_family = "serif") +
 #     theme(legend.position = "none") #Customize axis text to match violin plot,
 #   # nrow = 1, labels = Letters(), label_x = 0, align = "hv", label_fontface = "plain", label_size = 12, label_fontfamily = "serif")
 # 
-# # ggsave("../Figures & Tables New/LengthWeight_2Panel.png", width = 6, height = 4)
-# # ggsave("../Figures & Tables New/LengthWeight_Scatter.png", width = 6, height = 4)
+# # ggsave("output/plots/LengthWeight_2Panel.png", width = 6, height = 4)
+# # ggsave("output/plots/LengthWeight_Scatter.png", width = 6, height = 4)
 
 # Catch by Site
 Tables$`Site Catch` <- MergedData %>%
@@ -933,7 +919,7 @@ Gear_Venn <- plot(venn_fit,
 Gear_Venn
 
 # Saving as vector graphics
-# cairo_ps(filename = "../Figures & Tables New/Venn_Diagram_Final.eps", 
+# cairo_ps(filename = "output/plots/Venn_Diagram_Final.eps", 
 #          width = 5, 
 #          height = 5, 
 #          family = "serif")
@@ -941,93 +927,6 @@ Gear_Venn
 # plot(Gear_Venn)
 # 
 # dev.off()
-
-
-# # Not Used in Thesis. Length-Frequency Histogram by Gear Type--------------------------------------
-# # All fish, by gear, excluding top 1% of lengths
-# ggplot(MergedData %>% bind_rows(MergedData %>% mutate(Gear = "All Gears")) %>% filter(StandardLength_mm < quantile(MergedData$StandardLength_mm, na.rm = TRUE, 0.99)), aes(x = StandardLength_mm, color = Gear)) +
-#   geom_histogram(closed = "left", binwidth = 5, alpha = .8) +
-#   facet_wrap(~Gear, nrow = 4, scales = "free_y") +
-#   labs(
-#     x = "Standard Length (mm)",
-#     y = "Count"
-#   ) +
-#   scale_color_manual(values = GearColors()) +
-#   scale_x_continuous(breaks = seq(0, 275, by = 25)) +
-#   theme_classic() +
-#   theme(legend.position = "none", text = element_text(size = 14))
-# 
-# 
-# # Individual Species Histograms (Function)
-# # Select only species with at least 7 individuals captured by each gear
-# LargeSampleSpecies <- MergedData %>%
-#   filter(!is.na(StandardLength_mm)) %>%
-#   summarize(
-#     CastAbund = sum(Count[Gear == "Cast Net"]),
-#     CentAbund = sum(Count[Gear == "Centipede Net"]),
-#     SeineAbund = sum(Count[Gear == "Seine"]),
-#     Fewest = min(CastAbund, CentAbund, SeineAbund),
-#     .by = Species
-#   ) %>%
-#   filter(Fewest > 7)
-# 
-# # Function to create 2x2 grid of histograms from each gear + 'All Gears' for input species
-# # With a lot of help from Bard
-# plot_length_freq_grid <- function(species) {
-#   GearSpLF <- MergedData %>%
-#     filter(!is.na(StandardLength_mm) & Species == species) %>%
-#     select(Species, StandardLength_mm, Gear)
-# 
-#   # Determine common X-axis range
-#   xlim <- c(round_any(min(MergedData$StandardLength_mm[MergedData$Species == species], na.rm = T), 50, floor), 1.1 * round_any(max(MergedData$StandardLength_mm[MergedData$Species == species], na.rm = T), 50, ceiling))
-#   breaks <- round(max(GearSpLF$StandardLength_mm), -1) / 10
-# 
-#   # Create main title with species name
-#   main_title <- paste("Length Frequency Histograms for", species)
-# 
-#   # Store current graphical parameters
-#   opar <- par(no.readonly = TRUE) # Store default parameters
-# 
-#   # Create a layout with outer margins for the box
-#   par(mfrow = c(2, 2), oma = c(.5, .5, 2.5, .5))
-# 
-#   # Plot histograms for each gear type with consistent X-axis
-#   for (gear in c("Cast Net", "Centipede Net", "Seine")) {
-#     hist(GearSpLF[GearSpLF$Gear == gear, "StandardLength_mm"],
-#       main = paste(gear, "(n = ", nrow(GearSpLF[GearSpLF$Gear == gear, ]), ")"),
-#       xlab = "Standard Length (mm)",
-#       ylab = "Frequency",
-#       xlim = xlim, # Enforce common X-axis range
-#       breaks = breaks
-#     )
-#   }
-#   # Plot histogram for all gears combined with consistent X-axis
-#   hist(GearSpLF$StandardLength_mm,
-#     main = paste("All Gears (n = ", nrow(GearSpLF), ")"),
-#     xlab = "Standard Length (mm)",
-#     ylab = "Frequency",
-#     xlim = xlim, # Enforce common X-axis range
-#     breaks = breaks
-#   )
-# 
-#   # Add main title above the grid
-#   mtext(main_title, outer = TRUE, cex = 1.2)
-# 
-#   # Draw a box around the entire grid
-#   box("outer", lwd = 4) # Outer box for grid
-# 
-#   # Restore original graphical parameters
-#   par(opar)
-# }
-# 
-# plot_length_freq_grid(LargeSampleSpecies[1, 1])
-# plot_length_freq_grid(LargeSampleSpecies[2, 1])
-# plot_length_freq_grid(LargeSampleSpecies[3, 1])
-# plot_length_freq_grid(LargeSampleSpecies[4, 1])
-# plot_length_freq_grid(LargeSampleSpecies[5, 1])
-# # Interesting example species:
-# plot_length_freq_grid("Poeciliopsis elongata")
-
 
 
 # Create Excel file with a sheet for each table in Tables-------------
@@ -1056,4 +955,4 @@ for (i in 1:length(Tables)) {
 wb <- wb %>%
   wb_add_font("Species List", dims = "A2:A100", italic = TRUE) %>%
   wb_add_cell_style("Species List", dims = "C2:E100", num_fmt_id = 1) %>%
-  wb_save(file = "../Figures & Tables New/Tables.xlsx", overwrite = TRUE)
+  wb_save(file = "output/tables/Tables.xlsx", overwrite = TRUE)

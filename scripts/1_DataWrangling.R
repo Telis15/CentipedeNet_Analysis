@@ -1,118 +1,53 @@
 
-#**Verified to be working on 10/24/25, with improvements made based on updates to rfishbase and openxlsx2**
+#**Verified to be working on 3/6/2026, with changes made to utilize RProject and containerization to via GitHub**
 
 # Packages ----------------------------------------------------------------
-library(clock)
+# library(clock)
 library(suncalc)
 library(rfishbase)
 library(vegan)
-library(reshape2)
 library(tidyverse)
 library(openxlsx2)
 # load("./WrangledData.RData")
-# Set Color Hex Codes and Shape Values for Gear Combinations
-# Most colors come from the Okabe-Ito colorblind-friendly palette
-GearColors <- function() {
-  return(c("All Gears" = "#000000", "Cast Net" = "#E69F00", "Centipede Net" = "#56B4E9", "Seine" = "#009E73"))
-}
-GearColorsAll <- function() {
-  return(c(
-    "All Gears" = "#000000",                 # Black
-    "Cast Net" = "#E69F00",                # Orange
-    "Cast Net & Centipede Net" = "#CC79A7", # Pink/Rose
-    "Cast Net & Seine" = "#785EF0",         # Violet
-    "Centipede Net" = "#56B4E9",            # Sky Blue
-    "Centipede Net & Seine" = "#B22222",    # Red
-    "Seine" = "#009E73"                     # Green
-  ))
-}
-
-GearShapes <- list(
-  "All Gears" = 18,               # Filled diamond
-  "Cast Net" = 16,                # Filled circle
-  "Centipede Net" = 15,           # Filled square
-  "Seine" = 17,                   # Filled triangle
-  "Cast Net & Centipede Net" = 22, # Open square with border 
-  "Cast Net & Seine" = 23,        # Open diamond with border 
-  "Centipede Net & Seine" = 24    # Open triangle with border
-)
-
-GearLineTypes <- list("Cast Net" = "22",          # "dashed"
-                      "Centipede Net" = "73",     # "longdash"
-                      "Seine" = "1343",         # "dotdash"
-                      "Cast Net & Centipede Net" = "1446",
-                      "Cast Net & Seine" = "491549",
-                      "Centipede Net & Seine" = "188888",
-                      "All Gears" = "solid")
-
-GearLines <- function() {
-  return(c(
-    # Single Gears (simple, standard patterns)
-    "Cast Net" = "22",          # "dashed"
-    "Centipede Net" = "73",     # "longdash"
-    "Seine" = "1343",         # "dotdash"
-    # Gear Combinations (custom, more complex patterns)
-    "Cast Net & Centipede Net" = "1446",
-    "Cast Net & Seine" = "491549", # This was the old Cast Net pattern
-    "Centipede Net & Seine" = "188888",
-    # All Gears
-    "All Gears" = "solid"
-  ))
-}
-
-SiteColors <- function() {
-  palette.colors(6, "Tableau")[1:6]
-}
-
-# To facilitate correct lettering style for multi-panel plots
-Letters <- function() {
-  return(c("A", "B", "C", "D", "E", "F"))
-}
+# NOTE: Plotting helper functions (GearColors, GearShapes, Letters, etc.) 
+# have been moved to scripts/0_PlotTheme.R to centralize styling.
 
 
-# Read in Site data & for each row with a blank StartTime, update it to the StartTime for the same site and visit and Gear=Centipede Net and Group=2. Remove nonexistent samples (AKA Effort = 0)
-SiteData <- wb_to_df("../Sampling Data.xlsx",
+# Read in Site Base data
+SiteData <- wb_to_df("data/Sampling Data.xlsx",
   sheet = "AllSamples_Info") %>%
-  select(-c(Secchi1_cm, Secchi2_cm, mVpH, mVORP, `DO_%`, `Conductivity_mS/cm`, `AbsConductivity_mS/cm`, Resistance_MΩcm, TDS_ppt, σt, AtmosphericPressure_PSI)) %>%
+  select(-c(Secchi1_cm, Secchi2_cm, mVpH, mVORP, `DO_%`, `Conductivity_mS/cm`, `AbsConductivity_mS/cm`, Resistance_MΩcm, TDS_ppt, σt, AtmosphericPressure_PSI))
+
+# Build true DateTimes natively before interpolation
+SiteData <- SiteData %>%
   mutate(
-    StartTime = if_else(!is.na(StartTime), StartTime, min(StartTime, na.rm = T)),
-    EndTime = if_else(!is.na(EndTime), EndTime, max(EndTime, na.rm = T)), .by = c(Site, Visit)
+    Date = as_date(Arrival_DateTime), 
+    StartTime = if_else(!is.na(StartTime), ymd_hms(paste(Date, StartTime), tz = "America/Costa_Rica", quiet = TRUE), as.POSIXct(NA, tz = "America/Costa_Rica")),
+    EndTime   = if_else(!is.na(EndTime), ymd_hms(paste(Date, EndTime), tz = "America/Costa_Rica", quiet = TRUE), as.POSIXct(NA, tz = "America/Costa_Rica"))
+  ) %>%
+  # Handle cross-midnight by adding 1 day to EndTime if it's earlier than StartTime
+  mutate(
+    EndTime = if_else(!is.na(StartTime) & !is.na(EndTime) & hour(EndTime) < hour(StartTime), EndTime + days(1), EndTime)
+  ) %>%
+  relocate(Date, .before = Arrival_DateTime)
+
+# Impute missing Start/End values, then generate Sample IDs
+SiteData <- SiteData %>%
+  mutate(
+    StartTime = if_else(!is.na(StartTime), StartTime, min(StartTime, na.rm = TRUE)),
+    EndTime   = if_else(!is.na(EndTime), EndTime, max(EndTime, na.rm = TRUE)), 
+    .by = c(Site, Visit)
   ) %>%
   mutate(SampleID = paste(substr(Site, 1, 3), substr(Visit, 1, 1), "_", substr(Gear, 1, 4), sep = ""), .before = Site) %>% 
   filter(Effort > 0)
+
 
 ## Clearing Excel-averaged values from Seine & Cast Net to prep for later summarizing by Site
 SiteData[which(SiteData$Gear != "Centipede Net"), match("SecchiDepth_cm", names(SiteData)):match("Temperature_C", names(SiteData))] <- NA
 
 # Add site-wide descriptors Dominant Substrate (descriptive), Mud Dominance (0,1) & Steepness (0,1,2)
-SiteData <- left_join(SiteData, wb_to_df("../Sampling Data.xlsx",
+SiteData <- left_join(SiteData, wb_to_df("data/Sampling Data.xlsx",
   sheet = "Site_SubstrateSteepness"))
-
-# Add Start & End Dates & Times
-SiteData <- SiteData %>% 
-  mutate(StartTime = date_time_build(get_year(SiteData$Arrival_DateTime),
-                                     get_month(SiteData$Arrival_DateTime),
-                                     get_day(SiteData$Arrival_DateTime),
-                                     get_hour(SiteData$StartTime),
-                                     get_minute(SiteData$StartTime),
-                                     zone = "America/Costa_Rica"),
-         EndTime = if_else(get_hour(SiteData$EndTime) < get_hour(SiteData$StartTime),
-                           date_time_build(get_year(SiteData$Arrival_DateTime),
-                                           get_month(SiteData$Arrival_DateTime),
-                                           get_day(SiteData$Arrival_DateTime) + 1,
-                                           get_hour(SiteData$EndTime),
-                                           get_minute(SiteData$EndTime),
-                                           zone = "America/Costa_Rica"
-                           ),
-                           date_time_build(get_year(SiteData$Arrival_DateTime),
-                                           get_month(SiteData$Arrival_DateTime),
-                                           get_day(SiteData$Arrival_DateTime),
-                                           get_hour(SiteData$EndTime),
-                                           get_minute(SiteData$EndTime),
-                                           zone = "America/Costa_Rica")),
-         Date = date_build(get_year(SiteData$Arrival_DateTime), get_month(SiteData$Arrival_DateTime), get_day(SiteData$Arrival_DateTime))) %>% 
-  relocate(Date, .before = Arrival_DateTime)
-         
 
 # Calculate Sunrise/Sunset and add to SiteData
 SiteData <- left_join(SiteData, getSunlightTimes(
@@ -136,54 +71,14 @@ SiteData <- SiteData %>%
   mutate(DaylightPercent = DaylightHrs / as.numeric(difftime(EndTime, StartTime, units = "hours")) * 100, .after = DaylightHrs)
 
 # Read-in Slope/Aspect & Merge with SiteData. Calculated in ArcGIS Pro from "Costa Rica DEM" by j_nelson, sourced from 30 meter NASA SRTM elevation models.
-SiteData <- left_join(SiteData, wb_to_df("../Sites_SlopeAspect.xlsx")) %>%
+SiteData <- left_join(SiteData, wb_to_df("data/Sites_SlopeAspect.xlsx")) %>%
   relocate(c(SampleID, Site, Visit, Gear, Group)) %>%
   arrange(SampleID)
 
 
-# Occlusion Image Processing ----------------------------------------------
-
-## Occlusion Data
-# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-# setwd("..")
-# setwd("./Percent Coverage Images/Cropped")
-#
-# Occlusion Image Analysis
-#
-#
-##** Occlusion image analysis (~4-6 hrs processing)*
-# library(devtools)
-# devtools::install_github("hiweller/countcolors")
-# library(countcolors)
-#
-## Use ~24 measured "yellow" values from all images, as RGB unit triplets
-# colorMatrix <- matrix(ncol = 3, c(0.533333333333333, 0.376470588235294, 0, 0.56078431372549, 0.345098039215686, 0, 0.635294117647059, 0.454901960784314, 0, 0.682352941176471, 0.462745098039216, 0, 0.709803921568627, 0.482352941176471, 0, 0.725490196078431, 0.509803921568627, 0, 0.811764705882353, 0.607843137254902, 0, 0.823529411764706, 0.635294117647059, 0, 0.870588235294118, 0.701960784313725, 0, 0.905882352941176, 0.733333333333333, 0, 0.913725490196078, 0.788235294117647, 0.431372549019608, 0.941176470588235, 0.729411764705882, 0, 0.941176470588235, 0.8, 0.00392156862745098, 0.964705882352941, 0.823529411764706, 0, 0.996078431372549, 0.87843137254902, 0.372549019607843, 1, 0.670588235294118, 0, 1, 0.768627450980392, 0.00392156862745098, 1, 0.803921568627451, 0, 1, 0.83921568627451, 0, 1, 0.866666666666667, 0.0784313725490196, 0.949, 0.886, 0.02, .949,.914,.42,.949,.663,.133,.949,.898,.18), byrow = T)
-# colnames(colorMatrix) <- c("R", "G", "B")
-#
-### Calculate proportion of all cropped occlusion images that is yellow
-# #Testing with newly sampled colors
-# ColorCount <- countColorsInDirectory(".", color.range = "spherical", center = colorMatrix, radius = rep(.1, length(colorMatrix[,1])), target.color = "magenta", return.indicator = T, save.indicator = "./Masked")
-#
-# load("../OcclusionData.RData")
-#
-# OcclDF <- map_dfr(ColorCount, ~tibble(Openness = .x[2])) %>%
-#   mutate(Image = names(ColorCount)) %>%
-#   mutate(Occlusion = 100*(1 - as.numeric(Openness))) %>%
-#   mutate(Net = str_sub_all(Image, end = -2)) %>%
-#   separate(Net, into = c("Site", "Group"), sep = "_") %>%
-#   mutate(Gear = "Centipede Net") %>%
-#   mutate(.by = c(Site, Gear, Group), OcclusionGroupAvg = mean(Occlusion), OcclusionGroupSTDev = sd(Occlusion)) %>%
-#   mutate(.by = Site, OcclusionSiteAvg = mean(Occlusion), OcclusionSiteSTDev = sd(Occlusion)) %>%
-#   select(Site, Gear, Group, OcclusionGroupAvg, OcclusionGroupSTDev, OcclusionSiteAvg, OcclusionSiteSTDev) %>%
-#   distinct()
-# save(OcclDF, file = "../Occlusion.RData")
-# rm(ColorCount, colorMatrix)
-#
-# setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-# Merge Site Data with Occlusion Data if not re-processing above.
-
-# Skip to here if not re-processing occlusion images------------------------------------
-load("../Occlusion.RData")
+# Occlusion Image Analysis is completely handled by scripts/Occlusion Processing.R
+# Merge Site Data with Occlusion Data
+load("data/Occlusion.RData")
 OcclDF$Site <- str_replace_all(OcclDF$Site, "PuntaMorales", "Punta Morales")
 OcclDF$Group <- as.numeric(OcclDF$Group)
 
@@ -193,12 +88,12 @@ SiteData <- left_join(SiteData, OcclDF[, c(1:5)]) %>%
 rm(OcclDF)
 
 # Read in fish data & remove two unidentified small fish. Likely small enough to escape, potentially too small to ID even if preserved. Assumed to be non-novel species already represented in dataset.
-IndivData <- wb_to_df("../Sampling Data.xlsx", sheet = "AllSamples_Fish", cols = "A:I") %>%
+IndivData <- wb_to_df("data/Sampling Data.xlsx", sheet = "AllSamples_Fish", cols = "A:I") %>%
   filter(Species != "Anchoa sp. *" & Species != "Juvenil perciformes*") %>%
   select(-c(Collected, Notes))
 
 # Batch weights & counts when n>30 for a species in a single gear
-BatchData <- wb_to_df("../Sampling Data.xlsx", sheet = "AllSamples_Batch") %>%
+BatchData <- wb_to_df("data/Sampling Data.xlsx", sheet = "AllSamples_Batch") %>%
   select(-TotalWeight_g)
 
 # Combine individual and batch fish data, expanding Batch to 1 row per fish
@@ -224,30 +119,30 @@ MergedData <- full_join(FishData,
 
 rm(IndivData, FishData, BatchData)
 
-## Create list of Species
+## Create list of Species augmented with taxonomic & life history data from FishBase 
 load("data/SpeciesList.RData")
 
 # SpeciesList <- MergedData %>%
 #   filter(!is.na(Species)) %>%
 #   summarize(Abundance = sum(Count), .by = Species) %>%
-#   mutate(SpeciesRank = rank(-Abundance, ties.method = "last"), .before = Species) %>% 
-#   left_join((fb_tbl("species") %>% 
-#   left_join(fb_tbl("families") %>% 
-#               select(FamCode, Family), by = "FamCode") %>% 
-#   mutate(Species = paste(Genus, Species)) %>% 
-#   filter(Species %in% MergedData$Species) %>% 
-#   collect()), by = "Species") %>% 
-#   relocate(SpeciesRank, Species, Abundance, Genus, Family, FBname) %>% 
+#   mutate(SpeciesRank = rank(-Abundance, ties.method = "last"), .before = Species) %>%
+#   left_join((fb_tbl("species") %>%
+#   left_join(fb_tbl("families") %>%
+#               select(FamCode, Family), by = "FamCode") %>%
+#   mutate(Species = paste(Genus, Species)) %>%
+#   filter(Species %in% MergedData$Species) %>%
+#   collect()), by = "Species") %>%
+#   relocate(SpeciesRank, Species, Abundance, Genus, Family, FBname) %>%
 #   mutate(FBname = case_when(
 #     Species == "Bathygobius andrei" ~ "Estuarine frillfin",
 #     Species == "Diapterus brevirostris" ~ "Peruvian mojarra",
 #     Species == "Gerres simillimus" ~ "Yellowfin mojarra",
 #     Species == "Sphoeroides rosenblatti" ~ "Oval puffer",
 #     .default = FBname))
-#   
-# # # Check for missing data
-# # filter(SpeciesList, is.na(FBname) | is.na(Genus))
 # 
+# # Check for missing data
+# filter(SpeciesList, is.na(FBname) | is.na(Genus))
+
 # save(SpeciesList, file = "data/SpeciesList.RData")
 
 FamilyList <- SpeciesList %>%
@@ -290,7 +185,15 @@ SampleData <- SiteData %>%
   arrange(SampleID)
 
 # Create Community matrix (Filtering invalid centipede net sample tiv2)
-Sample_Community_Matrix <- dcast(MergedData %>% filter(Effort > 0 & SampleID != 'Tiv2_Cent'), SampleID ~ Species, value.var = "Count", fun.aggregate = length, fill = 0) %>%
+Sample_Community_Matrix <- MergedData %>%
+  filter(Effort > 0 & SampleID != 'Tiv2_Cent') %>%
+  pivot_wider(
+    id_cols = SampleID,
+    names_from = Species,
+    values_from = Count,
+    values_fn = length,
+    values_fill = 0
+  ) %>%
   column_to_rownames(var = "SampleID") %>%
   t() %>%
   as.data.frame() %>%
@@ -380,50 +283,60 @@ visits_all_gears <- intersect(visits_cast_seine, visits_with_cent) # This will c
 
 # --- MODIFIED: Build Incidence_Matrices using the complete visit lists ---
 Incidence_Matrices <- list(
-  "Cast Net" = dcast(MergedData %>% filter(Gear == "Cast Net" & Effort != 0), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>%
+  "Cast Net" = MergedData %>%
+    filter(Gear == "Cast Net" & Effort != 0) %>%
+    pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>%
     mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
     filter(!is.na(Species)) %>%
     column_to_rownames(var = "Species"),
   
   # This one is correct (filters the single invalid sample)
-  "Centipede Net" = dcast(MergedData %>% filter(Gear == "Centipede Net" & Effort != 0 & SampleID != 'Tiv2_Cent'), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>%
+  "Centipede Net" = MergedData %>%
+    filter(Gear == "Centipede Net" & Effort != 0 & SampleID != 'Tiv2_Cent') %>%
+    pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>%
     mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
     filter(!is.na(Species)) %>%
     column_to_rownames(var = "Species"),
   
-  "Seine" = dcast(MergedData %>% filter(Gear == "Seine" & Effort != 0), Species ~ SampleID, value.var = "Count", fun.aggregate = length, fill = 0) %>%
-    mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
-    filter(!is.na(Species)) %>%
-    column_to_rownames(var = "Species"),
-  
-  # FIX: Filter MergedData to only include site visits that have BOTH gears
-  "Cast Net & Centipede Net" = dcast(MergedData %>% 
-                                       filter(substr(SampleID, 1, 4) %in% visits_cast_cent & (Gear == "Cast Net" | Gear == "Centipede Net")), 
-                                     Species ~ substr(SampleID, 1, 4), value.var = "Count", fun.aggregate = length, fill = 0) %>%
-    mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
-    filter(!is.na(Species)) %>%
-    column_to_rownames(var = "Species"),
-  
-  # FIX: Filter MergedData to only include site visits that have BOTH gears
-  "Cast Net & Seine" = dcast(MergedData %>% 
-                               filter(substr(SampleID, 1, 4) %in% visits_cast_seine & (Gear == "Cast Net" | Gear == "Seine")), 
-                             Species ~ substr(SampleID, 1, 4), value.var = "Count", fun.aggregate = length, fill = 0) %>%
+  "Seine" = MergedData %>%
+    filter(Gear == "Seine" & Effort != 0) %>%
+    pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>%
     mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
     filter(!is.na(Species)) %>%
     column_to_rownames(var = "Species"),
   
   # FIX: Filter MergedData to only include site visits that have BOTH gears
-  "Centipede Net & Seine" = dcast(MergedData %>% 
-                                    filter(substr(SampleID, 1, 4) %in% visits_cent_seine & (Gear == "Centipede Net" | Gear == "Seine")), 
-                                  Species ~ substr(SampleID, 1, 4), value.var = "Count", fun.aggregate = length, fill = 0) %>%
+  "Cast Net & Centipede Net" = MergedData %>%
+    filter(substr(SampleID, 1, 4) %in% visits_cast_cent & (Gear == "Cast Net" | Gear == "Centipede Net")) %>%
+    mutate(SiteVisit = substr(SampleID, 1, 4)) %>%
+    pivot_wider(id_cols = Species, names_from = SiteVisit, values_from = Count, values_fn = length, values_fill = 0) %>%
+    mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
+    filter(!is.na(Species)) %>%
+    column_to_rownames(var = "Species"),
+  
+  # FIX: Filter MergedData to only include site visits that have BOTH gears
+  "Cast Net & Seine" = MergedData %>%
+    filter(substr(SampleID, 1, 4) %in% visits_cast_seine & (Gear == "Cast Net" | Gear == "Seine")) %>%
+    mutate(SiteVisit = substr(SampleID, 1, 4)) %>%
+    pivot_wider(id_cols = Species, names_from = SiteVisit, values_from = Count, values_fn = length, values_fill = 0) %>%
+    mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
+    filter(!is.na(Species)) %>%
+    column_to_rownames(var = "Species"),
+  
+  # FIX: Filter MergedData to only include site visits that have BOTH gears
+  "Centipede Net & Seine" = MergedData %>%
+    filter(substr(SampleID, 1, 4) %in% visits_cent_seine & (Gear == "Centipede Net" | Gear == "Seine")) %>%
+    mutate(SiteVisit = substr(SampleID, 1, 4)) %>%
+    pivot_wider(id_cols = Species, names_from = SiteVisit, values_from = Count, values_fn = length, values_fill = 0) %>%
     mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
     filter(!is.na(Species)) %>%
     column_to_rownames(var = "Species"),
   
   # FIX: Filter MergedData to only include site visits that have ALL THREE gears
-  "All Gears" = dcast(MergedData %>% 
-                        filter(substr(SampleID, 1, 4) %in% visits_all_gears), 
-                      Species ~ substr(SampleID, 1, 4), value.var = "Count", fun.aggregate = length, fill = 0) %>%
+  "All Gears" = MergedData %>%
+    filter(substr(SampleID, 1, 4) %in% visits_all_gears) %>%
+    mutate(SiteVisit = substr(SampleID, 1, 4)) %>%
+    pivot_wider(id_cols = Species, names_from = SiteVisit, values_from = Count, values_fn = length, values_fill = 0) %>%
     mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
     filter(!is.na(Species)) %>%
     column_to_rownames(var = "Species")

@@ -1,6 +1,6 @@
 
 library(tidyverse)
-library(rlang)
+# library(rlang)
 
 # Load pre-wrangled dataframes and remove what I don't need right now
 load("data/WrangledData.RData")
@@ -9,23 +9,8 @@ load("data/WrangledData.RData")
 rm(list=setdiff(ls(), c("SampleData")))
 
 
-# Colors & Shapes for theming
-palette("Tableau")
-
-# GearColors <- c("All Gears" = "#CC79A7", "Cast Net" = "#E69F00", "Centipede Net" = "#56B4E9", "Seine" = "#009E73")
-
-GearColors <- function() {
-  return(c('#E69F00', '#56B4E9', '#009E73'))
-}
-
-SiteColors <- function() {
-  palette.colors(6, "Tableau")[1:6] 
-}
-  
-  
-# GearColorsAll <- c("All Gears" = "#CC79A7", "Cast Net" = "#E69F00", "Cast Net & Centipede Net" = "#c7ab10", "Cast Net & Seine" = "#0072B2", "Centipede Net" = "#56B4E9", "Centipede Net & Seine" = "#D55E00", "Seine" = "#009E73")
-# 
-# GearShapes <- c("All Gears" = 18, "Cast Net" = 16, "Cast Net & Centipede Net" = 10, "Cast Net & Seine" = 9, "Centipede Net" = 15, "Centipede Net & Seine" = 14, "Seine" = 17)
+# Source the global ggplot2 theme and aesthetic scales
+source("scripts/0_PlotTheme.R")
 
 # Predictors + Corresponding Labels
 Predictors <- data.frame(Variable = names(SampleData %>% select(-c(SampleID, DiversityRaw, CPUE, BPUE, MinLength, MaxLength, MinWeight, MaxWeight, Visit, EffortUnit, StartTime, EndTime, Latitude, Longitude, Site, Gear, Season))), Label = c("Abundance (n)", "log-Abundance (log(n + 1))", "Species Richness", "Shannon Diversity", "Biomass (g)", "Mean Length (mm)", "Mean Weight (g)", "Effort", "Percent Occlusion", "Occlusion Variability (Standard Deviation)", "Mud Dominance (0 or 1)", "Steepness", "Hours of Daylight Sampling", "Percent of Daylight Sampling", "Secchi Depth (cm)", "Secchi Depth Variability (Standard Deviation)", "pH", "Dissolved Oxygen (mg/L)", "Salinity (PSU)", "Salinity Variability (Standard Deviation)", "Temperature (°C)"))
@@ -44,8 +29,9 @@ Effort <- ggplot(SampleData, aes(y = Site, x = Effort, fill = Gear)) +
   scale_fill_manual(values = GearColors()) +
   facet_wrap(. ~ Gear, scales = "free", nrow = 3,  strip.position = "top", labeller = as_labeller(labeller)) +
   theme_bw() +
-  theme(legend.position = "none") 
-rm(labeller)
+  source("scripts/0_PlotTheme.R")$theme # This is slightly awkward but to maintain BW for appendix if desired.
+  # Better to just use the global theme if consistency is key:
+  # theme_set already handles it.rm(labeller)
 
 
 # Boxplot Template Function
@@ -53,7 +39,7 @@ rm(labeller)
 PlotBySite <- function(Metric, Label) {
   ggplot(SampleData, aes(x = {{Metric}}, Site)) +
     geom_boxplot(fill = SiteColors(), alpha = 0.8) +
-    theme_bw() +
+    theme_classic(base_family = "serif", base_size = 9) +
     labs(x = Label, y = "Site")
 }
 
@@ -94,13 +80,18 @@ PSU<- PlotBySite(PSU, Predictors$Label[19]),
 PSU_SD <- PlotBySite(PSU_SD, Predictors$Label[20]),
 Temperature <- PlotBySite(Temperature, Predictors$Label[21]))
 
-for (i in 1:length(Plots)) {
-  # Get the current plot object and its name
-  current_plot <- Plots[[i]]
-  plot_name <- Predictors$Variable[i]  # Access name from the list names vector
-  
-  # Save the plot using ggsave with the name and ".png" extension
-  ggsave(filename = paste0("../Figures & Tables/Appendix Plots/", plot_name, ".png"), plot = current_plot)
-}
+# Save the plots using purrr::walk2 (safe iteration without integer indexing)
+purrr::walk2(
+  .x = Plots,
+  .y = Predictors$Variable,
+  .f = ~ggsave(
+    filename = paste0("output/plots/Appendix_", .y, ".png"), 
+    plot = .x,
+    width = 2.75,
+    height = 3.66,
+    units = "in",
+    dpi = 600
+  )
+)
 
 
