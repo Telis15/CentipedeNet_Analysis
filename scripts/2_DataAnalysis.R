@@ -11,10 +11,11 @@ library(tidyverse)
 # library(devtools)
 library(openxlsx2)
 library(extrafont)
+library(parallel)
 
 # Load pre-wrangled dataframes and remove what I don't need right now
 load("data/WrangledData.RData")
-load("output/models/Rarefaction.RData")
+# load("output/models/Rarefaction.RData")
 # load("output/models/Rarefaction_New.RData")
 rm(FamilyList, Sample_Community_Matrix)
 
@@ -41,8 +42,8 @@ source("scripts/0_PlotTheme.R")
 loadfonts(device = "win")
 par(family = "serif")
 
-# Something to fix margin issues with cowplot and serif font (overlapping margins in grid plots).
-set_null_device(cairo_pdf)
+# # Something to fix margin issues with cowplot and Aptos font (overlapping margins in grid plots).
+# set_null_device(cairo_pdf)
 
 
 # Summary Stats -----------------------------------------------------------
@@ -89,36 +90,61 @@ SampleData %>%
 
 
 # # iNEXT Analysis
-# # Species Accumulation Curves & Rarefaction with iNEXT **These take time! (~30 minutes) --------------------
-# Gear_Out_Raw <- iNEXT(Incidence_Matrices, q = c(0,1,2), datatype = "incidence_raw", nboot = 1000)
-# Gear_Out_Single_Raw <- iNEXT(Incidence_Matrices[1:3],q = 0, datatype = "incidence_raw", nboot = 1000)
-# Gear_Out_Combos_Raw <- iNEXT(Incidence_Matrices[4:7],q = 0, datatype = "incidence_raw", nboot = 1000)
+# # Species Accumulation Curves & Rarefaction with iNEXT --------------------
+##** These take 15-30 minutes to run**
 # 
-# # Creating individual iNEXT objects for each combo. !!These take ~15 minutes each!!
-# Cast <- iNEXT(Incidence_Matrices['Cast Net'], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$`Cast Net`))
-# Cent <- iNEXT(Incidence_Matrices['Centipede Net'], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$`Centipede Net`))
-# Seine <- iNEXT(Incidence_Matrices["Seine"], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$Seine))
-# Cast_Cent <- iNEXT(Incidence_Matrices['Cast Net & Centipede Net'], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$`Cast Net & Centipede Net`))
-# Cast_Seine <- iNEXT(Incidence_Matrices['Cast Net & Seine'], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$`Cast Net & Seine`))
-# Cent_Seine <- iNEXT(Incidence_Matrices['Centipede Net & Seine'], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$`Centipede Net & Seine`))
-# All_Gears <- iNEXT(Incidence_Matrices['All Gears'], q = 0, datatype = "incidence_raw", nboot = 1000, knots = length(Incidence_Matrices$`All Gears`))
+# # 1. Define the sets to analyze
+# inext_sets <- list(
+#   Gear_Out_Raw      = list(x = Incidence_Matrices, q = c(0,1,2)),
+#   Gear_Out_Single   = list(x = Incidence_Matrices[1:3], q = 0),
+#   Gear_Out_Combos   = list(x = Incidence_Matrices[4:7], q = 0),
+#   Cast              = list(x = Incidence_Matrices['Cast Net'], q = 0, knots = length(Incidence_Matrices$`Cast Net`)),
+#   Cent              = list(x = Incidence_Matrices['Centipede Net'], q = 0, knots = length(Incidence_Matrices$`Centipede Net`)),
+#   Seine             = list(x = Incidence_Matrices['Seine'], q = 0, knots = length(Incidence_Matrices$Seine)),
+#   Cast_Cent         = list(x = Incidence_Matrices['Cast Net & Centipede Net'], q = 0, knots = length(Incidence_Matrices$`Cast Net & Centipede Net`)),
+#   Cast_Seine        = list(x = Incidence_Matrices['Cast Net & Seine'], q = 0, knots = length(Incidence_Matrices$`Cast Net & Seine`)),
+#   Cent_Seine        = list(x = Incidence_Matrices['Centipede Net & Seine'], q = 0, knots = length(Incidence_Matrices$`Centipede Net & Seine`)),
+#   All_Gears         = list(x = Incidence_Matrices['All Gears'], q = 0, knots = length(Incidence_Matrices$`All Gears`))
+# )
 # 
-# #How many samples would be required to attain set sample coverage? (Reported based on nboot = 1000).
-# SampleEst <-
-#   estimateD(Incidence_Matrices, q = 0, datatype = "incidence_raw", base = "coverage", level = c(0.75, .95), nboot = 1000) %>%
+# # 2. Run in Parallel
+# clu <- makeCluster(detectCores() - 1)
+# clusterExport(clu, varlist = c("inext_sets", "Incidence_Matrices"))
+# clusterEvalQ(clu, library(iNEXT))
+# 
+# inext_results <- parLapply(clu, inext_sets, function(params) {
+#   do.call(iNEXT, c(params, list(datatype = "incidence_raw", nboot = 1000)))
+# })
+# 
+# stopCluster(clu)
+# 
+# # 3. Extract results back to individual objects for plotting compatibility
+# Gear_Out_Raw        <- inext_results$Gear_Out_Raw
+# Gear_Out_Single_Raw <- inext_results$Gear_Out_Single
+# Gear_Out_Combos_Raw <- inext_results$Gear_Out_Combos
+# Cast                <- inext_results$Cast
+# Cent                <- inext_results$Cent
+# Seine               <- inext_results$Seine
+# Cast_Cent           <- inext_results$Cast_Cent
+# Cast_Seine          <- inext_results$Cast_Seine
+# Cent_Seine          <- inext_results$Cent_Seine
+# All_Gears           <- inext_results$All_Gears
+# 
+# # 4. Coverage estimates (separate call as it's quick once richness is known)
+# SampleEst <- estimateD(Incidence_Matrices, q = 0, datatype = "incidence_raw", 
+#                         base = "coverage", level = c(0.75, .95), nboot = 1000) %>%
 #   rename("Samples (n)" = t) %>%
 #   mutate(SC = paste(100 * round(SC, digits = 2), "% Coverage")) %>%
 #   select(-Order.q) %>%
 #   arrange(SC) %>%
 #   add_row(.after = 7)
 # 
+# # 5. Save the results
 # save(
-#   list = c(
-#     "Gear_Out_Raw", "Gear_Out_Single_Raw", "Gear_Out_Combos_Raw",
-#     "Cast", "Cent", "Seine",
-#     "Cast_Cent", "Cast_Seine", "Cent_Seine", "All_Gears",
-#     "SampleEst"
-#   ),
+#   Gear_Out_Raw, Gear_Out_Single_Raw, Gear_Out_Combos_Raw,
+#   Cast, Cent, Seine,
+#   Cast_Cent, Cast_Seine, Cent_Seine, All_Gears,
+#   SampleEst,
 #   file = "output/models/Rarefaction.RData"
 # )
 

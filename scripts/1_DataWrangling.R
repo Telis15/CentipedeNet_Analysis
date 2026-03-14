@@ -2,7 +2,6 @@
 #**Verified to be working on 3/6/2026, with changes made to utilize RProject and containerization to via GitHub**
 
 # Packages ----------------------------------------------------------------
-# library(clock)
 library(suncalc)
 library(rfishbase)
 library(vegan)
@@ -342,4 +341,5 @@ Incidence_Matrices <- list(
     column_to_rownames(var = "Species")
 )
 
-# save.image("data/WrangledData.RData")
+# Save core wrangled dataframes for analysis and modeling
+save(MergedData, SampleData, SpeciesList, FamilyList, Sample_Community_Matrix, Incidence_Matrices, file = "data/WrangledData.RData")

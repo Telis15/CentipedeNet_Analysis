@@ -1,5 +1,4 @@
 # AFS Global Plot Theme Settings (Times Roman, 9pt text, simple background)
-# NOTE: This script must be sourced AFTER `data/WrangledData.RData` is loaded.
 
 # Set the global ggplot2 theme
 theme_set(
