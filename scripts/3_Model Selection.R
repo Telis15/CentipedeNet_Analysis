@@ -265,7 +265,7 @@ p_abund <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Abundance)) 
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10), breaks = c(0, 2, 10, 50, 150, 500), labels = label_number(accuracy = 1)) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.1, 0.2))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Abundance (log scale)", x = NULL, title = "Abundance", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -280,7 +280,7 @@ p_rich <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Richness)) +
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
   scale_y_continuous(breaks = c(0,3,6,9,12)) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.1, 0.2))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Species Richness", x = NULL, title ="Species Richness", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -294,7 +294,7 @@ p_div <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Shannon)) +
   geom_text(data = cld_div, aes(x = as.numeric(as.factor(Gear)), y = asymp.UCL, label = str_trim(.group)), 
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.1, 0.2))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Shannon Diversity", x = NULL, title = "Shannon Diversity", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -309,7 +309,7 @@ p_sim <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Simpson)) +
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
   scale_y_continuous(breaks = c(1,3,5,7)) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.1, 0.2))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Simpson Diversity", x = NULL, title = "Simpson Diversity", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
