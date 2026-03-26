@@ -865,7 +865,7 @@ plot_data_div_steepness <- create_plot_data(AvgMods$DivInt, DivIntFit, "Steepnes
 p_div_steepness <- ggplot(plot_data_div_steepness, aes(x = Steepness, y = Predicted)) + geom_point(size = 2, color = "black") + geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.2, color = "black") + labs(title = "Steepness", subtitle = "", x = "Steepness", y = "Shannon Diversity") + scale_x_discrete(limits = c("Low", "Medium", "High")) + theme(plot.title.position = "plot", plot.title = element_text(vjust = -1))
 
 
-final_plot_div <- plot_grid(p_div_daylight, p_div_effort, p_div_gear, p_div_occ, p_div_steepness, p_div_mud,ncol = 3, align = "hv") + plot_theme
+final_plot_div <- plot_grid(p_div_daylight, p_div_effort, p_div_occ, p_div_gear, p_div_steepness, p_div_mud, ncol = 2, align = "hv", byrow = FALSE) + plot_theme
 
 # --- Simpson Diversity ---
 plot_data_sim_gear <- create_plot_data(AvgMods$SimInt, SimIntFit, "Gear"); p_sim_gear <- ggplot(plot_data_sim_gear, aes(x = Gear, y = Predicted, color = Gear)) + geom_point(size = 2) + geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.2) + labs(title = "Gear", subtitle = "", x = "Gear", y = "Simpson Diversity") + gear_scales + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -888,8 +888,8 @@ final_plot_sim
 # ggsave(plot = final_plot_rich, "output/plots/MarginalEffects_Richness.eps", device = cairo_ps,  width = 5.62, height = 7.25, units = "in")
 # ggsave(plot = final_plot_rich, "output/plots/MarginalEffects_Richness.png",  width = 5.62, height = 7.25, units = "in", dpi = 600)
 # 
-# ggsave(plot = final_plot_div, "output/plots/MarginalEffects_Shannon.eps", device = cairo_ps,  width = 5.62, height = 4.21, units = "in")
-# ggsave(plot = final_plot_div, "output/plots/MarginalEffects_Shannon.png",  width = 5.62, height = 4.21, units = "in", dpi = 600)
+ggsave(plot = final_plot_div, "output/plots/MarginalEffects_Shannon.eps", device = cairo_ps,  width = 5.62, height = 7.25, units = "in")
+ggsave(plot = final_plot_div, "output/plots/MarginalEffects_Shannon.png",  width = 5.62, height = 7.25, units = "in", dpi = 600)
 # 
 # ggsave(plot = final_plot_sim, "output/plots/MarginalEffects_Simpson.eps", device = cairo_ps,  width = 5.62, height = 3.75, units = "in")
 # ggsave(plot = final_plot_sim, "output/plots/MarginalEffects_Simpson.png",  width = 5.62, height = 3.75, units = "in", dpi = 600)
