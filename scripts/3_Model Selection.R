@@ -265,7 +265,7 @@ p_abund <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Abundance)) 
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
   scale_y_continuous(trans = scales::pseudo_log_trans(base = 10), breaks = c(0, 2, 10, 50, 150, 500), labels = label_number(accuracy = 1)) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.07))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Abundance (log scale)", x = NULL, title = "Abundance", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -280,7 +280,7 @@ p_rich <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Richness)) +
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
   scale_y_continuous(breaks = c(0,3,6,9,12)) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.07))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Species Richness", x = NULL, title ="Species Richness", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -294,7 +294,7 @@ p_div <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Shannon)) +
   geom_text(data = cld_div, aes(x = as.numeric(as.factor(Gear)), y = asymp.UCL, label = str_trim(.group)), 
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.07))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Shannon Diversity", x = NULL, title = "Shannon Diversity", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -309,7 +309,7 @@ p_sim <- ggplot(geardat, aes(x = as.numeric(as.factor(Gear)), y = Simpson)) +
             # size = 4, 
             position = position_nudge(x = 0.3), hjust = 0) +
   scale_y_continuous(breaks = c(1,3,5,7)) +
-  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.10))) +
+  scale_x_continuous(breaks = 1:3, labels = sort(unique(as.character(geardat$Gear))), expand = expansion(mult = c(0.05, 0.07))) +
   scale_fill_manual(values = GearColors()) +
   labs(y = "Simpson Diversity", x = NULL, title = "Simpson Diversity", subtitle = "") +
   theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
@@ -324,7 +324,7 @@ final_tukey_plot <- plot_grid(
 
 final_tukey_plot
 # ggsave(plot = final_tukey_plot, "output/plots/GearTukeyGrid.eps", device = cairo_ps,  width = 5.62, height = 5.62, units = "in")
-ggsave(plot = final_tukey_plot, "output/plots/GearTukeyGrid.png",  width = 5.62, height = 5.62, units = "in", dpi = 300)
+# ggsave(plot = final_tukey_plot, "output/plots/GearTukeyGrid.png",  width = 5.62, height = 5.62, units = "in", dpi = 300)
 
 
 # Model Selection------------------------------------------------
@@ -837,7 +837,7 @@ final_plot_rich <- plot_grid(p_rich_effort_list[[1]], p_rich_season, p_rich_dayl
 
 # --- Shannon Diversity ---
 plot_data_div_gear <- create_plot_data(AvgMods$DivInt, DivIntFit, "Gear")
-p_div_gear <- ggplot(plot_data_div_gear, aes(x = Gear, y = Predicted, color = Gear)) + geom_point(size = 3) + geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.2, linewidth = 1) + labs(title = "Gear", subtitle = "", x = "Gear", y = "Shannon Diversity") +  gear_scales + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
+p_div_gear <- ggplot(plot_data_div_gear, aes(x = Gear, y = Predicted, color = Gear)) + geom_point(size = 2) + geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.2) + labs(title = "Gear", subtitle = "", x = "Gear", y = "Shannon Diversity") +  gear_scales + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
 
 plot_data_div_effort <- create_plot_data(AvgMods$DivInt, DivIntFit, "logEffort")
 
@@ -868,7 +868,7 @@ p_div_steepness <- ggplot(plot_data_div_steepness, aes(x = Steepness, y = Predic
 final_plot_div <- plot_grid(p_div_daylight, p_div_effort, p_div_gear, p_div_occ, p_div_steepness, p_div_mud,ncol = 3, align = "hv") + plot_theme
 
 # --- Simpson Diversity ---
-plot_data_sim_gear <- create_plot_data(AvgMods$SimInt, SimIntFit, "Gear"); p_sim_gear <- ggplot(plot_data_sim_gear, aes(x = Gear, y = Predicted, color = Gear)) + geom_point(size = 3) + geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.2, linewidth = 1) + labs(title = "Gear", subtitle = "", x = "Gear", y = "Simpson Diversity") + gear_scales + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
+plot_data_sim_gear <- create_plot_data(AvgMods$SimInt, SimIntFit, "Gear"); p_sim_gear <- ggplot(plot_data_sim_gear, aes(x = Gear, y = Predicted, color = Gear)) + geom_point(size = 2) + geom_errorbar(aes(ymin = CI_low, ymax = CI_high), width = 0.2) + labs(title = "Gear", subtitle = "", x = "Gear", y = "Simpson Diversity") + gear_scales + theme(legend.position = "none", plot.title.position = "plot", plot.title = element_text(vjust = -1))
 
 plot_data_sim_daylight <- create_plot_data(AvgMods$SimInt, SimIntFit, "DaylightPercent"); p_sim_daylight <- ggplot(plot_data_sim_daylight, aes(x = DaylightPercent, y = Predicted)) + geom_line(linewidth = 1, color = "black") + geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2, fill = "grey50") + labs(title = "Daylight", subtitle = "", x = "Percent Daylight", y = "Simpson Diversity") + scale_x_continuous(breaks = (c(0, 25, 50, 75, 100) - ScaleData$DaylightPercent$Mean) / ScaleData$DaylightPercent$SD, labels = c("0%", "25%", "50%", "75%", "100%")) + theme(plot.title.position = "plot", plot.title = element_text(vjust = -1))
 
