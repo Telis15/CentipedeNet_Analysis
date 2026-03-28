@@ -581,7 +581,7 @@ Tables$`Gear Study Summary` <- full_join(
       ),
     SampleData %>%
       summarize(
-        Gear = "All Gears", "Total Samples" = length(Richness), "Mean Effort" = NA_real_,
+        Gear = "All Gears", "Total Samples" = NA_real_, "Mean Effort" = NA_real_,
         "Mean Catch (n)" = mean(Abundance, na.rm = T), "Mean CPUE" = NA_real_,
         "Mean Biomass (g)" = mean(Biomass, na.rm = T), "Mean Richness" = mean(Richness, na.rm = T),
         "Mean Shannon Diversity" = mean(Shannon, na.rm = T), "Mean Simpson Diversity" = mean(Simpson, na.rm = T)
@@ -590,6 +590,13 @@ Tables$`Gear Study Summary` <- full_join(
   total_stats_final,
   by = "Gear"
 ) %>%
+  mutate(`Total Samples` = case_when(
+    Gear == "Cast Net & Centipede Net" ~ SampleData %>% filter(Gear %in% c("Cast Net", "Centipede Net")) %>% group_by(Site, Visit) %>% filter(n() == 2) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
+    Gear == "Cast Net & Seine" ~ SampleData %>% filter(Gear %in% c("Cast Net", "Seine")) %>% group_by(Site, Visit) %>% filter(n() == 2) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
+    Gear == "Centipede Net & Seine" ~ SampleData %>% filter(Gear %in% c("Centipede Net", "Seine")) %>% group_by(Site, Visit) %>% filter(n() == 2) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
+    Gear == "All Gears" ~ SampleData %>% filter(Gear %in% c("Cast Net", "Centipede Net", "Seine")) %>% group_by(Site, Visit) %>% filter(n() == 3) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
+    TRUE ~ `Total Samples`
+  )) %>%
   mutate("Effort Unit" = c("Throws", "Net Group Hours", "Hauls", NA, NA, NA, NA), .after = "Mean Effort") %>% 
   arrange(match(Gear, c("Cast Net", "Centipede Net", "Seine", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine", "All Gears"))) %>%
   relocate(Gear, `Total Samples`, `Total Catch (n)`, `Species Richness`, `Shannon Diversity`, `Simpson Diversity`, `Mean Catch (n)`, `Mean Richness`, `Mean Shannon Diversity`, `Mean Simpson Diversity`, `Mean Biomass (g)`, `Mean CPUE`)
