@@ -664,6 +664,11 @@ plot(Violin_Plot_SL)
 #        units = "in",
 #        dpi = 600)
 
+# Statistical comparison of Standard Length (SL) among gear types (Option A)
+SL_Model <- lm(StandardLength_mm ~ Gear, data = plot_data)
+print(anova(SL_Model))
+print(summary(SL_Model))
+
 
 # Catch by Site
 Tables$`Site Catch` <- MergedData %>%
