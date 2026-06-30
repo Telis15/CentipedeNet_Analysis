@@ -19,15 +19,15 @@ library(tidyverse)
 #setwd("..")
 # save.image("data/OcclusionData.RData")
 
-# OcclDF <- map_dfr(ColorCount, ~tibble(Openness = .x[2])) %>%
-#     mutate(Image = names(ColorCount)) %>%
-#     mutate(Occlusion = 100*(1 - as.numeric(Openness))) %>%
-#     mutate(Net = str_sub_all(Image, end = -2)) %>%
-#     separate(Net, into = c("Site", "Group"), sep = "_") %>%
-#     mutate(Gear = "Centipede Net") %>%
-#     mutate(.by = c(Site, Gear, Group), OcclusionGroupAvg = mean(Occlusion), OcclusionGroupSTDev = sd(Occlusion)) %>%
-#     mutate(.by = Site, OcclusionSiteAvg = mean(Occlusion), OcclusionSiteSTDev = sd(Occlusion)) %>%
-#     select(Site, Gear, Group, OcclusionGroupAvg, OcclusionGroupSTDev, OcclusionSiteAvg, OcclusionSiteSTDev) %>%
+# OcclDF <- map_dfr(ColorCount, ~tibble(Openness = .x[2])) |>
+#     mutate(Image = names(ColorCount)) |>
+#     mutate(Occlusion = 100*(1 - as.numeric(Openness))) |>
+#     mutate(Net = str_sub_all(Image, end = -2)) |>
+#     separate(Net, into = c("Site", "Group"), sep = "_") |>
+#     mutate(Gear = "Centipede Net") |>
+#     mutate(.by = c(Site, Gear, Group), OcclusionGroupAvg = mean(Occlusion), OcclusionGroupSTDev = sd(Occlusion)) |>
+#     mutate(.by = Site, OcclusionSiteAvg = mean(Occlusion), OcclusionSiteSTDev = sd(Occlusion)) |>
+#     select(Site, Gear, Group, OcclusionGroupAvg, OcclusionGroupSTDev, OcclusionSiteAvg, OcclusionSiteSTDev) |>
 #     unique()
 # # rm(ColorCount, colorMatrix)
 # 

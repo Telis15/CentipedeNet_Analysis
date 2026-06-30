@@ -54,15 +54,15 @@ NumericVars <- tribble(
 )
 
 # Generate list of numerical plots dynamically
-Plots <- map2(NumericVars$Variable, NumericVars$Label, PlotBySite) %>%
+Plots <- map2(NumericVars$Variable, NumericVars$Label, PlotBySite) |>
   set_names(NumericVars$Variable)
 
 Plots$Effort <- p_Effort
 
 # Site-Level Constant Metrics (Barplots)
-SiteConstants <- SampleData %>%
-  select(Site, Occlusion, Occlusion_SD, MudDominant, Steepness) %>%
-  mutate(across(c(MudDominant, Steepness), as.numeric)) %>%
+SiteConstants <- SampleData |>
+  select(Site, Occlusion, Occlusion_SD, MudDominant, Steepness) |>
+  mutate(across(c(MudDominant, Steepness), as.numeric)) |>
   distinct()
 
 Plots$Occlusion <- ggplot(SiteConstants, aes(y = Site, x = Occlusion, fill = Site)) +

@@ -20,8 +20,8 @@ load("output/models/DredgeListGLMM.RData")
 # Ensure ScaleDataEffort is available (may be missing from older .RData)
 if (!exists("ScaleDataEffort")) {
   message("ScaleDataEffort missing; recalculating from geardat...")
-  ScaleDataEffort <- geardat %>%
-    group_by(Gear) %>%
+  ScaleDataEffort <- geardat |>
+    group_by(Gear) |>
     summarize(
       Mean = mean(log(Effort), na.rm = TRUE),
       SD = sd(log(Effort), na.rm = TRUE)
@@ -56,8 +56,8 @@ create_plot_data <- function(model, global_model, predictor, grouping_var = NULL
   )
   
   if (is.null(grouping_var)) {
-    plot_data <- plot_data %>%
-      group_by(!!sym(predictor)) %>%
+    plot_data <- plot_data |>
+      group_by(!!sym(predictor)) |>
       summarize(across(c(Predicted, CI_low, CI_high), \(x) mean(x, na.rm = TRUE)))
   }
   return(plot_data)
@@ -93,7 +93,7 @@ p_abund_daylight <- estimate_relation(
   by = c("DaylightPercent = [fivenum]", "Gear"),
   fixed = list(logEffort = 0, Steepness = "Medium"),
   preserve_range = FALSE
-) %>%
+) |>
   ggplot(aes(x = DaylightPercent, y = Predicted, color = Gear, fill = Gear, linetype = Gear)) +
   geom_line(linewidth = 1) +
   geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.15, linetype = 0) +

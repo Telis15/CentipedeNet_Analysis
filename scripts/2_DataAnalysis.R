@@ -1,4 +1,4 @@
-source('scripts/00_AI_Export_Utils.R')
+source("scripts/00_AI_Export_Utils.R")
 ##**Confirmed to be functional 3/6/2026. Made minor adjustments to make more sharable on GitHub**
 # This script does not modify any pre-existing dataframes from WrangledData.RData and is not necessary to run prior to "3_Model Selection.R"
 # It primarily synthesizes, summarizes, and visualizes data created in "1_DataWrangling.R", with the exception of the iNEXT analysis that takes place in this script.
@@ -22,19 +22,19 @@ source("scripts/0_PlotTheme.R")
 rm(FamilyList, Sample_Community_Matrix)
 
 # Remove likely invalid centipede net sample (Tivives visit 2) where nets were never fully submerged
-MergedData <- MergedData %>% 
-  filter(SampleID != 'Tiv2_Cent')
+MergedData <- MergedData |> 
+  filter(SampleID != "Tiv2_Cent")
 
-SampleData <- SampleData %>% 
-  filter(SampleID != 'Tiv2_Cent')
+SampleData <- SampleData |> 
+  filter(SampleID != "Tiv2_Cent")
 
 # This matrix includes ALL valid samples and is used for calculating 
 # the true total diversity (87 species), NOT for iNEXT.
-StudyWide_Incidence_Matrix <- MergedData %>% 
-  filter(Effort != 0) %>%
-  pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>%
-  mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>%
-  filter(!is.na(Species)) %>%
+StudyWide_Incidence_Matrix <- MergedData |> 
+  filter(Effort != 0) |>
+  pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |>
+  mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |>
+  filter(!is.na(Species)) |>
   column_to_rownames(var = "Species")
 
 
@@ -43,41 +43,41 @@ StudyWide_Incidence_Matrix <- MergedData %>%
 Tables <- list()
 
 # Species List
-Tables$`Species List` <- left_join(GearSpeciesGrid, SpeciesList[, c("Species", "FBname")], by = "Species") %>%
+Tables$`Species List` <- left_join(GearSpeciesGrid, SpeciesList[, c("Species", "FBname")], by = "Species") |>
   relocate(Species, "Common Name" = FBname)
 
 # Site Summary
-Tables$`Site Summary` <- SiteData %>%
-  filter(Gear == "Centipede Net") %>%
-  select(Site, Visit, DaylightHrs:Steepness, OcclusionGroupAvg) %>%
+Tables$`Site Summary` <- SiteData |>
+  filter(Gear == "Centipede Net") |>
+  select(Site, Visit, DaylightHrs:Steepness, OcclusionGroupAvg) |>
   summarize(
     OcclusionSTDev = sd(OcclusionGroupAvg, na.rm = TRUE),
     DominantSubstrate = names(which.max(table(DominantSubstrate))),
     across(where(is.numeric) & !Visit, \(x) mean(x, na.rm = TRUE)), .by = Site
-  ) %>%
+  ) |>
   relocate(OcclusionSTDev, .after = OcclusionGroupAvg)
 
 # Study Summary
-Tables$`Study Summary` <- MergedData %>%
+Tables$`Study Summary` <- MergedData |>
   summarise(
     "Total Catch (n)" = sum(!is.na(Species)),
     "Individual Measurements" = sum(!is.na(StandardLength_mm)),
     "Species Richness" = length(unique(na.omit(Species))),
     "Shannon Diversity" = exp(diversity(rowSums(StudyWide_Incidence_Matrix), index = "shannon")),
     "Simpson Diversity" = diversity(rowSums(StudyWide_Incidence_Matrix), index = "invsimpson"),
-    "Total Biomass (kg)" = sum(Weight_g, AverageWeight_g, na.rm = T) / 1000,
-    "Minimum Weight (g)" = min(Weight_g, AverageWeight_g, na.rm = T),
-    "Maximum Weight (g)" = max(Weight_g, AverageWeight_g, na.rm = T),
-    "Minimum Standard Length (mm)" = min(StandardLength_mm, na.rm = T),
-    "Maximum Standard Length (mm)" = max(StandardLength_mm, na.rm = T)
+    "Total Biomass (kg)" = sum(Weight_g, AverageWeight_g, na.rm = TRUE) / 1000,
+    "Minimum Weight (g)" = min(Weight_g, AverageWeight_g, na.rm = TRUE),
+    "Maximum Weight (g)" = max(Weight_g, AverageWeight_g, na.rm = TRUE),
+    "Minimum Standard Length (mm)" = min(StandardLength_mm, na.rm = TRUE),
+    "Maximum Standard Length (mm)" = max(StandardLength_mm, na.rm = TRUE)
   )
 
 
 # Visit duration info:
-SampleData %>% 
-  select(SampleID, Site, Visit, StartTime, EndTime) %>% 
-  group_by(Site, Visit) %>% 
-  summarize(Duration = as.numeric(max(EndTime, na.rm = T) - min(StartTime, na.rm = T))) %>% 
+SampleData |> 
+  select(SampleID, Site, Visit, StartTime, EndTime) |> 
+  group_by(Site, Visit) |> 
+  summarize(Duration = as.numeric(max(EndTime, na.rm = TRUE) - min(StartTime, na.rm = TRUE))) |> 
   summary(Duration)
 
 
@@ -124,11 +124,11 @@ SampleData %>%
 # 
 # # 4. Coverage estimates (separate call as it's quick once richness is known)
 # SampleEst <- estimateD(Incidence_Matrices, q = 0, datatype = "incidence_raw",
-#                         base = "coverage", level = c(0.75, .95), nboot = 1000) %>%
-#   rename("Samples (n)" = t) %>%
-#   mutate(SC = paste(100 * round(SC, digits = 2), "% Coverage")) %>%
-#   select(-Order.q) %>%
-#   arrange(SC) %>%
+#                         base = "coverage", level = c(0.75, .95), nboot = 1000) |>
+#   rename("Samples (n)" = t) |>
+#   mutate(SC = paste(100 * round(SC, digits = 2), "% Coverage")) |>
+#   select(-Order.q) |>
+#   arrange(SC) |>
 #   add_row(.after = 7)
 # 
 # # 5. Save the results
@@ -174,10 +174,10 @@ SampleData %>%
 #                        ))
 #                      ))
 # 
-# gb$data[[1]] <- gb$data[[1]] %>% # Forcibly reduce size of shapes on plot
+# gb$data[[1]] <- gb$data[[1]] |> # Forcibly reduce size of shapes on plot
 #   mutate(size = 3)
 # 
-# gb$data[[2]] <- gb$data[[2]] %>% # Forcibly reduce linewidth and assign linetypes by group (should be twice as many groups as assemblages. Low numbers are rarefied, high numbers are extrapolated). Can also assign as GearLineTypes[[1,2,etc.]]
+# gb$data[[2]] <- gb$data[[2]] |> # Forcibly reduce linewidth and assign linetypes by group (should be twice as many groups as assemblages. Low numbers are rarefied, high numbers are extrapolated). Can also assign as GearLineTypes[[1,2,etc.]]
 #   mutate(
 #     linewidth = 0.75,
 #     linetype = case_when(
@@ -224,7 +224,7 @@ common_theme <- function() {
 # --- Singles_Coverage_Plot (Native ggplot2 Approach) ---
 
 # 1. Extract and format data
-df_singles <- fortify(Gear_Out_Single_Raw, type = 2) %>%
+df_singles <- fortify(Gear_Out_Single_Raw, type = 2) |>
   mutate(Assemblage = factor(Assemblage, levels = c("Cast Net", "Centipede Net", "Seine")))
 
 # 2. Build mapping vectors based on factor levels
@@ -282,7 +282,7 @@ Singles_Coverage_Plot <- ggplot(df_singles, aes(x = x, y = y, color = Assemblage
 # --- Combos_Coverage_Plot (Native ggplot2 Approach) ---
 
 # 1. Extract and format data
-df_combos <- fortify(Gear_Out_Combos_Raw, type = 2) %>%
+df_combos <- fortify(Gear_Out_Combos_Raw, type = 2) |>
   mutate(Assemblage = factor(Assemblage, levels = c("All Gears", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine")))
 
 # 2. Build certain vectors for manual mapping to ensure fixed legend order
@@ -334,7 +334,7 @@ Combos_Coverage_Plot <- ggplot(df_combos, aes(x = x, y = y, color = Assemblage, 
   # Labels and Formatting
   labs(x = "Sampling Units", y = NULL) +
   scale_x_continuous(expand = c(0.01, 0.01)) +
-  scale_y_continuous(expand = c(0.01, 0.01), labels = scales::percent, limits = c(.20, NA)) +
+  scale_y_continuous(expand = c(0.01, 0.01), labels = scales::percent, limits = c(0.20, NA)) +
   common_theme()
 
 
@@ -346,25 +346,11 @@ Coverage_Grid <-
 # Display the final plot
 plot(Coverage_Grid)
 
-# # --- Save the Final Plot for Publication ---
-# ggsave(plot = Coverage_Grid,
-#        filename = "output/plots/Coverage_2Panel_Final_Fig6.eps",
-#        device = cairo_ps,
-#        width = 5.62,
-#        height = 3.75,
-#        units = "in")
-# ggsave(plot = Coverage_Grid,
-#        filename = "output/plots/Coverage_2Panel_Final_Fig6.png",
-#        width = 5.62,
-#        height = 3.75,
-#        units = "in",
-#        dpi = 600)
-
 
 # All q Plot | Diversity Accumulation Curve --------------------------------------------------------------
 
 # 1. Extract and format data
-df_all_q <- fortify(Gear_Out_Raw, type = 1) %>%
+df_all_q <- fortify(Gear_Out_Raw, type = 1) |>
   mutate(Order.q = case_when(
     Order.q == 0 ~ "Species Richness",
     Order.q == 1 ~ "Shannon Diversity",
@@ -445,35 +431,21 @@ All_q_Plot <- ggplot(df_all_q, aes(x = x, y = y, color = Assemblage, fill = Asse
 # Display the plot
 plot(All_q_Plot)
 
-# # --- Save the Final Plot for Publication --- Figure 9
-# ggsave(plot = All_q_Plot,
-#        filename = "output/plots/All_q_Plot_Final.eps",
-#        device = cairo_ps,
-#        width = 5.62,
-#        height = 3.75,
-#        units = "in")
-# ggsave(plot = All_q_Plot,
-#        filename = "output/plots/All_q_Plot_Final.png",
-#        width = 5.62,
-#        height = 3.75,
-#        units = "in",
-#        dpi = 600)
-
 
 
 # Skip to here if not re-running iNEXT analysis ---------------------------
 # Table 5 How many samples would be required to attain set sample coverage? (Reported based on nboot = 1000).
 Tables$`iNEXT Coverage Projection` <- SampleEst
 
-SampleEst_Wide <- SampleEst %>%
-  filter(Assemblage %in% c("All Gears", "Cast Net & Seine")) %>%
-  select(SC, Assemblage, "Samples (n)") %>%
-  pivot_wider(names_from = Assemblage, values_from = "Samples (n)") %>%
+SampleEst_Wide <- SampleEst |>
+  filter(Assemblage %in% c("All Gears", "Cast Net & Seine")) |>
+  select(SC, Assemblage, "Samples (n)") |>
+  pivot_wider(names_from = Assemblage, values_from = "Samples (n)") |>
   mutate(`% Improvement` = (`Cast Net & Seine` - `All Gears`) / `Cast Net & Seine` * 100)
 
 Tables$`iNEXT Coverage` <-
-  Gear_Out_Raw$DataInfo %>%
-  select(1:2, 4:5) %>%
+  Gear_Out_Raw$DataInfo |>
+  select(1:2, 4:5) |>
   rename("Number of Samples" = T, "Observed Richness" = S.obs, "Estimated Sample Coverage" = SC)
 
 # Export iNEXT Asymptotic Estimates and Data Info to AI_Ready_Data
@@ -482,35 +454,35 @@ write.csv(Gear_Out_Raw$DataInfo, "output/AI_Ready_Data/iNEXT_DataInfo.csv", row.
 
 # Table 4 Hill Number Estimates:
 Tables$`iNEXT Estimates` <-
-  Gear_Out_Raw$AsyEst %>%
+  Gear_Out_Raw$AsyEst |>
   rename(
     "Metric" = "Diversity",
     "Observed" = "Observed",
     "Estimated" = "Estimator"
-  ) %>%
-  arrange(match(Metric, c("Species richness", "Shannon diversity", "Simpson diversity")), match(Assemblage, c("Cast Net", "Centipede Net", "Seine", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine", "All Gears"))) %>%
-  add_row(.after = 14) %>%
+  ) |>
+  arrange(match(Metric, c("Species richness", "Shannon diversity", "Simpson diversity")), match(Assemblage, c("Cast Net", "Centipede Net", "Seine", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine", "All Gears"))) |>
+  add_row(.after = 14) |>
   add_row(.after = 7)
 
 # Gear Combo Diversity
-Gear_Diversity <- Gear_Out_Raw$AsyEst %>%
-      as.data.frame() %>%
-      filter(Diversity == "Species richness") %>%
-      select(Assemblage, Observed) %>%
-      rename(Gear = Assemblage, Richness = Observed) %>%
+Gear_Diversity <- Gear_Out_Raw$AsyEst |>
+  as.data.frame() |>
+  filter(Diversity == "Species richness") |>
+  select(Assemblage, Observed) |>
+  rename(Gear = Assemblage, Richness = Observed) |>
   left_join(
-    Gear_Out_Raw$AsyEst %>%
-      as.data.frame() %>%
-      filter(Diversity == "Shannon diversity") %>%
-      select(Assemblage, Observed) %>%
+    Gear_Out_Raw$AsyEst |>
+      as.data.frame() |>
+      filter(Diversity == "Shannon diversity") |>
+      select(Assemblage, Observed) |>
       rename(Gear = Assemblage, Shannon = Observed),
     by = "Gear"
-  ) %>%
+  ) |>
   left_join(
-    Gear_Out_Raw$AsyEst %>%
-      as.data.frame() %>%
-      filter(Diversity == "Simpson diversity") %>%
-      select(Assemblage, Observed) %>%
+    Gear_Out_Raw$AsyEst |>
+      as.data.frame() |>
+      filter(Diversity == "Simpson diversity") |>
+      select(Assemblage, Observed) |>
       rename(Gear = Assemblage, Simpson = Observed),
     by = "Gear"
   )
@@ -522,50 +494,50 @@ Gear_Diversity <- Gear_Out_Raw$AsyEst %>%
 # by pooling all valid samples, regardless of site-visit matching.
 
 # --- First, create all the correct (un-paired) incidence matrices for this table ---
-Matrix_Cast <- MergedData %>% filter(Gear == "Cast Net" & Effort != 0) %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cent <- MergedData %>% filter(Gear == "Centipede Net" & Effort != 0 & SampleID != 'Tiv2_Cent') %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Seine <- MergedData %>% filter(Gear == "Seine" & Effort != 0) %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cast_Cent <- MergedData %>% filter((Gear == "Cast Net" | Gear == "Centipede Net") & Effort != 0 & SampleID != 'Tiv2_Cent') %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cast_Seine <- MergedData %>% filter((Gear == "Cast Net" | Gear == "Seine") & Effort != 0) %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
-Matrix_Cent_Seine <- MergedData %>% filter((Gear == "Centipede Net" | Gear == "Seine") & Effort != 0 & SampleID != 'Tiv2_Cent') %>% pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) %>% mutate(across(where(is.numeric), ~ replace(., . != 0, 1))) %>% filter(!is.na(Species)) %>% column_to_rownames(var = "Species")
+Matrix_Cast <- MergedData |> filter(Gear == "Cast Net" & Effort != 0) |> pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |> mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |> filter(!is.na(Species)) |> column_to_rownames(var = "Species")
+Matrix_Cent <- MergedData |> filter(Gear == "Centipede Net" & Effort != 0 & SampleID != "Tiv2_Cent") |> pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |> mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |> filter(!is.na(Species)) |> column_to_rownames(var = "Species")
+Matrix_Seine <- MergedData |> filter(Gear == "Seine" & Effort != 0) |> pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |> mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |> filter(!is.na(Species)) |> column_to_rownames(var = "Species")
+Matrix_Cast_Cent <- MergedData |> filter((Gear == "Cast Net" | Gear == "Centipede Net") & Effort != 0 & SampleID != "Tiv2_Cent") |> pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |> mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |> filter(!is.na(Species)) |> column_to_rownames(var = "Species")
+Matrix_Cast_Seine <- MergedData |> filter((Gear == "Cast Net" | Gear == "Seine") & Effort != 0) |> pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |> mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |> filter(!is.na(Species)) |> column_to_rownames(var = "Species")
+Matrix_Cent_Seine <- MergedData |> filter((Gear == "Centipede Net" | Gear == "Seine") & Effort != 0 & SampleID != "Tiv2_Cent") |> pivot_wider(id_cols = Species, names_from = SampleID, values_from = Count, values_fn = length, values_fill = 0) |> mutate(across(where(is.numeric), \(x) if_else(x > 0, 1, 0))) |> filter(!is.na(Species)) |> column_to_rownames(var = "Species")
 # Matrix_All_Gears is your existing 'StudyWide_Incidence_Matrix' (which is correct)
 
 # --- Now, build the 7-row table of total stats ---
 total_stats_final <- bind_rows(
   # Cast Net
-  GearSpeciesGrid %>% select(`Cast Net`) %>% summarize("Total Catch (n)" = sum(`Cast Net`, na.rm = TRUE)) %>%
+  GearSpeciesGrid |> select(`Cast Net`) |> summarize("Total Catch (n)" = sum(`Cast Net`, na.rm = TRUE)) |>
     mutate(Gear = "Cast Net", "Species Richness" = nrow(Matrix_Cast),
            "Shannon Diversity" = exp(diversity(rowSums(Matrix_Cast), index = "shannon")),
            "Simpson Diversity" = diversity(rowSums(Matrix_Cast), index = "invsimpson")),
   # Centipede Net
-  GearSpeciesGrid %>% select(`Centipede Net`) %>% summarize("Total Catch (n)" = sum(`Centipede Net`, na.rm = TRUE)) %>%
+  GearSpeciesGrid |> select(`Centipede Net`) |> summarize("Total Catch (n)" = sum(`Centipede Net`, na.rm = TRUE)) |>
     mutate(Gear = "Centipede Net", "Species Richness" = nrow(Matrix_Cent),
            "Shannon Diversity" = exp(diversity(rowSums(Matrix_Cent), index = "shannon")),
            "Simpson Diversity" = diversity(rowSums(Matrix_Cent), index = "invsimpson")),
   # Seine
-  GearSpeciesGrid %>% select(Seine) %>% summarize("Total Catch (n)" = sum(Seine, na.rm = TRUE)) %>%
+  GearSpeciesGrid |> select(Seine) |> summarize("Total Catch (n)" = sum(Seine, na.rm = TRUE)) |>
     mutate(Gear = "Seine", "Species Richness" = nrow(Matrix_Seine),
            "Shannon Diversity" = exp(diversity(rowSums(Matrix_Seine), index = "shannon")),
            "Simpson Diversity" = diversity(rowSums(Matrix_Seine), index = "invsimpson")),
   # Cast Net & Centipede Net
-  GearSpeciesGrid %>% select(`Cast Net`, `Centipede Net`) %>% summarize("Total Catch (n)" = sum(., na.rm = TRUE)) %>%
+  GearSpeciesGrid |> select(`Cast Net`, `Centipede Net`) |> summarize("Total Catch (n)" = sum(`Cast Net`, na.rm = TRUE) + sum(`Centipede Net`, na.rm = TRUE)) |>
     mutate(Gear = "Cast Net & Centipede Net", "Species Richness" = nrow(Matrix_Cast_Cent),
            "Shannon Diversity" = exp(diversity(rowSums(Matrix_Cast_Cent), index = "shannon")),
            "Simpson Diversity" = diversity(rowSums(Matrix_Cast_Cent), index = "invsimpson")),
   # Cast Net & Seine
-  GearSpeciesGrid %>% select(`Cast Net`, Seine) %>% summarize("Total Catch (n)" = sum(., na.rm = TRUE)) %>%
+  GearSpeciesGrid |> select(`Cast Net`, Seine) |> summarize("Total Catch (n)" = sum(`Cast Net`, na.rm = TRUE) + sum(Seine, na.rm = TRUE)) |>
     mutate(Gear = "Cast Net & Seine", "Species Richness" = nrow(Matrix_Cast_Seine),
            "Shannon Diversity" = exp(diversity(rowSums(Matrix_Cast_Seine), index = "shannon")),
            "Simpson Diversity" = diversity(rowSums(Matrix_Cast_Seine), index = "invsimpson")),
   # Centipede Net & Seine
-  GearSpeciesGrid %>% select(`Centipede Net`, Seine) %>% summarize("Total Catch (n)" = sum(., na.rm = TRUE)) %>%
+  GearSpeciesGrid |> select(`Centipede Net`, Seine) |> summarize("Total Catch (n)" = sum(`Centipede Net`, na.rm = TRUE) + sum(Seine, na.rm = TRUE)) |>
     mutate(Gear = "Centipede Net & Seine", "Species Richness" = nrow(Matrix_Cent_Seine),
            "Shannon Diversity" = exp(diversity(rowSums(Matrix_Cent_Seine), index = "shannon")),
            "Simpson Diversity" = diversity(rowSums(Matrix_Cent_Seine), index = "invsimpson")),
   # All Gears (using the true study-wide objects)
   tibble(
     Gear = "All Gears",
-    "Total Catch (n)" = sum(GearSpeciesGrid[,c("Cast Net", "Centipede Net", "Seine")], na.rm = TRUE),
+    "Total Catch (n)" = sum(GearSpeciesGrid[, c("Cast Net", "Centipede Net", "Seine")], na.rm = TRUE),
     "Species Richness" = length(unique(na.omit(MergedData$Species))),
     "Shannon Diversity" = exp(diversity(rowSums(StudyWide_Incidence_Matrix), index = "shannon")),
     "Simpson Diversity" = diversity(rowSums(StudyWide_Incidence_Matrix), index = "invsimpson")
@@ -575,34 +547,34 @@ total_stats_final <- bind_rows(
 # --- 2. Create the final table by merging MEAN and TOTAL stats ---
 Tables$`Gear Study Summary` <- full_join(
   bind_rows(
-    SampleData %>%
+    SampleData |>
       summarize(
         "Total Samples" = length(Richness), "Mean Effort" = mean(Effort),
-        "Mean Catch (n)" = mean(Abundance, na.rm = T), "Mean CPUE" = mean(CPUE, na.rm = T),
-        "Mean Biomass (g)" = mean(Biomass, na.rm = T), "Mean Richness" = mean(Richness, na.rm = T),
-        "Mean Shannon Diversity" = mean(Shannon, na.rm = T), "Mean Simpson Diversity" = mean(Simpson, na.rm = T),
+        "Mean Catch (n)" = mean(Abundance, na.rm = TRUE), "Mean CPUE" = mean(CPUE, na.rm = TRUE),
+        "Mean Biomass (g)" = mean(Biomass, na.rm = TRUE), "Mean Richness" = mean(Richness, na.rm = TRUE),
+        "Mean Shannon Diversity" = mean(Shannon, na.rm = TRUE), "Mean Simpson Diversity" = mean(Simpson, na.rm = TRUE),
         .by = Gear
       ),
-    SampleData %>%
+    SampleData |>
       summarize(
         Gear = "All Gears", "Total Samples" = NA_real_, "Mean Effort" = NA_real_,
-        "Mean Catch (n)" = mean(Abundance, na.rm = T), "Mean CPUE" = NA_real_,
-        "Mean Biomass (g)" = mean(Biomass, na.rm = T), "Mean Richness" = mean(Richness, na.rm = T),
-        "Mean Shannon Diversity" = mean(Shannon, na.rm = T), "Mean Simpson Diversity" = mean(Simpson, na.rm = T)
+        "Mean Catch (n)" = mean(Abundance, na.rm = TRUE), "Mean CPUE" = NA_real_,
+        "Mean Biomass (g)" = mean(Biomass, na.rm = TRUE), "Mean Richness" = mean(Richness, na.rm = TRUE),
+        "Mean Shannon Diversity" = mean(Shannon, na.rm = TRUE), "Mean Simpson Diversity" = mean(Simpson, na.rm = TRUE)
       )
   ),
   total_stats_final,
   by = "Gear"
-) %>%
+) |>
   mutate(`Total Samples` = case_when(
-    Gear == "Cast Net & Centipede Net" ~ SampleData %>% filter(Gear %in% c("Cast Net", "Centipede Net")) %>% group_by(Site, Visit) %>% filter(n() == 2) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
-    Gear == "Cast Net & Seine" ~ SampleData %>% filter(Gear %in% c("Cast Net", "Seine")) %>% group_by(Site, Visit) %>% filter(n() == 2) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
-    Gear == "Centipede Net & Seine" ~ SampleData %>% filter(Gear %in% c("Centipede Net", "Seine")) %>% group_by(Site, Visit) %>% filter(n() == 2) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
-    Gear == "All Gears" ~ SampleData %>% filter(Gear %in% c("Cast Net", "Centipede Net", "Seine")) %>% group_by(Site, Visit) %>% filter(n() == 3) %>% ungroup() %>% distinct(Site, Visit) %>% nrow(),
+    Gear == "Cast Net & Centipede Net" ~ SampleData |> filter(Gear %in% c("Cast Net", "Centipede Net")) |> group_by(Site, Visit) |> filter(n() == 2) |> ungroup() |> distinct(Site, Visit) |> nrow(),
+    Gear == "Cast Net & Seine" ~ SampleData |> filter(Gear %in% c("Cast Net", "Seine")) |> group_by(Site, Visit) |> filter(n() == 2) |> ungroup() |> distinct(Site, Visit) |> nrow(),
+    Gear == "Centipede Net & Seine" ~ SampleData |> filter(Gear %in% c("Centipede Net", "Seine")) |> group_by(Site, Visit) |> filter(n() == 2) |> ungroup() |> distinct(Site, Visit) |> nrow(),
+    Gear == "All Gears" ~ SampleData |> filter(Gear %in% c("Cast Net", "Centipede Net", "Seine")) |> group_by(Site, Visit) |> filter(n() == 3) |> ungroup() |> distinct(Site, Visit) |> nrow(),
     TRUE ~ `Total Samples`
-  )) %>%
-  mutate("Effort Unit" = c("Throws", "Net Group Hours", "Hauls", NA, NA, NA, NA), .after = "Mean Effort") %>% 
-  arrange(match(Gear, c("Cast Net", "Centipede Net", "Seine", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine", "All Gears"))) %>%
+  )) |>
+  mutate("Effort Unit" = c("Throws", "Net Group Hours", "Hauls", NA, NA, NA, NA), .after = "Mean Effort") |> 
+  arrange(match(Gear, c("Cast Net", "Centipede Net", "Seine", "Cast Net & Centipede Net", "Cast Net & Seine", "Centipede Net & Seine", "All Gears"))) |>
   relocate(Gear, `Total Samples`, `Total Catch (n)`, `Species Richness`, `Shannon Diversity`, `Simpson Diversity`, `Mean Catch (n)`, `Mean Richness`, `Mean Shannon Diversity`, `Mean Simpson Diversity`, `Mean Biomass (g)`, `Mean CPUE`)
 
 
@@ -610,16 +582,16 @@ Tables$`Gear Study Summary` <- full_join(
 # --- 1. Streamline by preparing data and summary stats first ---
 
 # Create a clean data frame for plotting, removing NA values
-plot_data <- MergedData %>% 
+plot_data <- MergedData |> 
   filter(!is.na(StandardLength_mm))
 
 # Create a summary data frame for labels and stats
-summary_data <- plot_data %>%
-  group_by(Gear) %>%
+summary_data <- plot_data |>
+  group_by(Gear) |>
   summarize(
     n = n(),
     Mean = round(mean(StandardLength_mm, na.rm = TRUE), 0)
-  ) %>%
+  ) |>
   mutate(
     # Create the x-axis labels with sample sizes
     x_label = paste0(Gear, "\n(n = ", n, ")"),
@@ -631,7 +603,7 @@ summary_data <- plot_data %>%
 
 Violin_Plot_SL <- ggplot(data = plot_data, aes(x = Gear, y = StandardLength_mm, fill = Gear)) +
   # Use geom_jitter for outliers to prevent overplotting, using the same filtered data
-  geom_jitter(shape = 16, alpha = 0.75, width = 0.1, data = . %>% filter(StandardLength_mm > 250)) +
+  geom_jitter(shape = 16, alpha = 0.75, width = 0.1, data = \(df) df |> filter(StandardLength_mm > 250)) +
   geom_violin(alpha = 0.75) +
   labs(y = "Standard Length (mm)", x = NULL) +
   # Use the pre-calculated labels from the summary data frame
@@ -655,69 +627,55 @@ Violin_Plot_SL <- ggplot(data = plot_data, aes(x = Gear, y = StandardLength_mm, 
 # Display the plot
 plot(Violin_Plot_SL)
 
-# # --- 3. Save the plot in the correct format for publication ---
-# ggsave(plot = Violin_Plot_SL,
-#        filename = "output/plots/Length_Gear_Violin_SL.eps",
-#        device = cairo_ps,
-#        width = 2.75,
-#        height = 3.66,
-#        units = "in")
-# ggsave(plot = Violin_Plot_SL,
-#        filename = "output/plots/Length_Gear_Violin_SL.png",
-#        width = 2.75,
-#        height = 3.66,
-#        units = "in",
-#        dpi = 600)
-
 
 # Catch by Site
-Tables$`Site Catch` <- MergedData %>%
-  filter(!is.na(Species)) %>%
-  group_by(Site, Gear) %>%
-  summarise(Count = sum(Count), .groups = "keep") %>%
-  ungroup() %>%
-  pivot_wider(names_from = Gear, values_from = Count) %>%
-  mutate("Total Catch" = rowSums(select(., -Site)))
+Tables$`Site Catch` <- MergedData |>
+  filter(!is.na(Species)) |>
+  group_by(Site, Gear) |>
+  summarise(Count = sum(Count), .groups = "keep") |>
+  ungroup() |>
+  pivot_wider(names_from = Gear, values_from = Count) |>
+  mutate("Total Catch" = rowSums(across(-Site)))
 
 # CPUE by Site
-Tables$`Site CPUE` <- SampleData %>%
-  group_by(Site, Gear) %>%
-  summarise(CPUE = mean(CPUE, na.rm = TRUE), .groups = 'keep') %>%
-  pivot_wider(names_from = Gear, values_from = CPUE) %>%
-  mutate("All Gears" = rowMeans(across(where(is.numeric)), na.rm = TRUE)) %>%
+Tables$`Site CPUE` <- SampleData |>
+  group_by(Site, Gear) |>
+  summarise(CPUE = mean(CPUE, na.rm = TRUE), .groups = "keep") |>
+  pivot_wider(names_from = Gear, values_from = CPUE) |>
+  mutate("All Gears" = rowMeans(across(where(is.numeric)), na.rm = TRUE)) |>
   bind_rows(
-    SampleData %>%
-      group_by(Gear) %>%
-      summarise(CPUE = mean(CPUE, na.rm = TRUE), .groups = 'drop') %>%
-      pivot_wider(names_from = Gear, values_from = CPUE) %>%
+    SampleData |>
+      group_by(Gear) |>
+      summarise(CPUE = mean(CPUE, na.rm = TRUE), .groups = "drop") |>
+      pivot_wider(names_from = Gear, values_from = CPUE) |>
       mutate(Site = "All Sites", "All Gears" = rowMeans(across(where(is.numeric)), na.rm = TRUE))
   )
 
 
 # Dominant species with abundances:
 Tables$`Gear Species Abundance` <- cbind(
-  SpeciesList %>%
-    arrange(desc(Abundance)) %>%
-    select("Species (All Gears)" = Species, "All Gears" = Abundance) %>%
+  SpeciesList |>
+    arrange(desc(Abundance)) |>
+    select("Species (All Gears)" = Species, "All Gears" = Abundance) |>
     slice_head(n = 5),
-  GearSpeciesGrid %>%
-    select("Species (Cast Net)" = Species, `Cast Net`) %>%
-    arrange(desc(`Cast Net`)) %>%
+  GearSpeciesGrid |>
+    select("Species (Cast Net)" = Species, `Cast Net`) |>
+    arrange(desc(`Cast Net`)) |>
     slice_head(n = 5),
-  GearSpeciesGrid %>%
-    select("Species (Centipede Net)" = Species, `Centipede Net`) %>%
-    arrange(desc(`Centipede Net`)) %>%
+  GearSpeciesGrid |>
+    select("Species (Centipede Net)" = Species, `Centipede Net`) |>
+    arrange(desc(`Centipede Net`)) |>
     slice_head(n = 5),
-  GearSpeciesGrid %>%
-    select("Species (Seine)" = Species, Seine) %>%
-    arrange(desc(Seine)) %>%
+  GearSpeciesGrid |>
+    select("Species (Seine)" = Species, Seine) |>
+    arrange(desc(Seine)) |>
     slice_head(n = 5)
 )
 
 
 # Unique species by Gear
 # Count
-GearComboGrid <- GearSpeciesGrid %>%
+GearComboGrid <- GearSpeciesGrid |>
   mutate(GearCombo = case_when(
     `Cast Net` > 0 & `Centipede Net` > 0 & `Seine` > 0 ~ "All Gears",
     `Cast Net` > 0 & `Centipede Net` > 0 & `Seine` == 0 ~ "Cast & Centipede",
@@ -729,27 +687,27 @@ GearComboGrid <- GearSpeciesGrid %>%
     .default = "??"
   ))
 
-Tables$`Gear Combo Richness` <- GearComboGrid %>%
-  summarize(Species = n(), .by = "GearCombo") %>%
+Tables$`Gear Combo Richness` <- GearComboGrid |>
+  summarize(Species = n(), .by = "GearCombo") |>
   arrange(desc(Species))
 
 # ID
 Tables$`Gear Exclusives` <- bind_cols(
-  GearComboGrid %>%
-    filter(GearCombo == "Cast Only") %>%
-    select(Species, "Cast Net") %>%
-    rename("Cast Net" = Species, "(Cast)" = `Cast Net`) %>%
-    bind_rows(tibble(.rows = (19 - length(.[, 1])))),
-  GearComboGrid %>%
-    filter(GearCombo == "Centipede Only") %>%
-    select(Species, "Centipede Net") %>%
-    rename("Centipede Net " = Species, "(Cent)" = `Centipede Net`) %>%
-    bind_rows(tibble(.rows = (19 - length(.[, 1])))),
-  GearComboGrid %>%
-    filter(GearCombo == "Seine Only") %>%
-    select(Species, "Seine") %>%
-    rename("Seine" = Species, "(Seine)" = Seine) %>%
-    bind_rows(tibble(.rows = (19 - length(.[, 1]))))
+  GearComboGrid |>
+    filter(GearCombo == "Cast Only") |>
+    select(Species, "Cast Net") |>
+    rename("Cast Net" = Species, "(Cast)" = `Cast Net`) |>
+    (\(df) bind_rows(df, tibble(.rows = 19 - nrow(df))))(),
+  GearComboGrid |>
+    filter(GearCombo == "Centipede Only") |>
+    select(Species, "Centipede Net") |>
+    rename("Centipede Net " = Species, "(Cent)" = `Centipede Net`) |>
+    (\(df) bind_rows(df, tibble(.rows = 19 - nrow(df))))(),
+  GearComboGrid |>
+    filter(GearCombo == "Seine Only") |>
+    select(Species, "Seine") |>
+    rename("Seine" = Species, "(Seine)" = Seine) |>
+    (\(df) bind_rows(df, tibble(.rows = 19 - nrow(df))))()
 )
 
 # Venn Diagram
@@ -766,17 +724,6 @@ Gear_Venn <- plot(venn_fit,
 
 Gear_Venn
 
-# # Saving as vector graphics
-# cairo_ps(filename = "output/plots/Venn_Diagram_Final.eps",
-#          width = 5,
-#          height = 5,
-#          family = "serif")
-# 
-# plot(Gear_Venn)
-# 
-# dev.off()
-# ggsave(plot = Gear_Venn, "output/plots/Venn_Diagram_Final.png", 
-#        width = 5, height = 5, units = "in", dpi = 600)
 
 # Create Excel file with a sheet for each table in Tables-------------
 # Set minimum column width to avoid very narrow cells
@@ -792,23 +739,21 @@ for (i in 1:length(Tables)) {
   safe_sheet_name <- gsub(" ", "_", sheet_name)
   write.csv(Tables[[i]], paste0("output/AI_Ready_Data/Table_", safe_sheet_name, ".csv"), row.names = FALSE)
 
-  wb <- wb %>%
-    wb_add_worksheet(sheet = sheet_name) %>%
+  wb <- wb |>
+    wb_add_worksheet(sheet = sheet_name) |>
     wb_add_data_table(
       sheet = sheet_name, x = Tables[[i]],
       table_style = "TableStyleLight1",
       table_name = gsub(" ", "_", sheet_name),
       dims = wb_dims(from_col = 1),
       na.strings = ""
-    ) %>%
-    wb_set_col_widths(sheet = sheet_name, cols = 1:ncol(Tables[[i]]), widths = "auto") %>%
+    ) |>
+    wb_set_col_widths(sheet = sheet_name, cols = 1:ncol(Tables[[i]]), widths = "auto") |>
     wb_add_cell_style(sheet = sheet_name, dims = wb_dims(x = Tables[[i]]), horizontal = "center", vertical = "center", num_fmt_id = 4)
 }
 
 # Save the workbook (And add specific formatting tweaks for some tables)
-wb <- wb %>%
-  wb_add_font("Species List", dims = "A2:A100", italic = TRUE) %>%
-  wb_add_cell_style("Species List", dims = "C2:E100", num_fmt_id = 1) %>%
+wb <- wb |>
+  wb_add_font("Species List", dims = "A2:A100", italic = TRUE) |>
+  wb_add_cell_style("Species List", dims = "C2:E100", num_fmt_id = 1) |>
   wb_save(file = "output/tables/Tables.xlsx", overwrite = TRUE)
-
- 

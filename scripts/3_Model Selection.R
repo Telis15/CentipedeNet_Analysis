@@ -27,66 +27,66 @@ source("scripts/0_PlotTheme.R")
 # Data Wrangling ----------------------------------------------------------
 #**SCALING EFFORT AGAIN. Switched to GLMMs with Effort x Gear Interaction**
 # Removing semi-failed centipede net sample where nets were never fully inundated:
-SampleData <- SampleData %>% 
-  filter(!(Gear == 'Centipede Net' & Effort < 3))
+SampleData <- SampleData |> 
+  filter(!(Gear == "Centipede Net" & Effort < 3))
 
-CorMat <- cor(SampleData %>%
-                select(-c(SampleID, logCPUE, Shannon, Richness, Simpson, Effort, EffortUnit, StartTime, EndTime, Season, Site, Gear, DominantSubstrate)) %>%
+CorMat <- cor(SampleData |>
+                select(-c(SampleID, logCPUE, Shannon, Richness, Simpson, Effort, EffortUnit, StartTime, EndTime, Season, Site, Gear, DominantSubstrate)) |>
                 na.omit())
 
 # Create dataset with scaled & centered numeric predictors.
-dat <- SampleData %>%
-  mutate(logEffort = log(Effort)) %>%
-  mutate(logEffort = scale(logEffort)[,1], .by = Gear) %>%
-  mutate(across(c(Season, Site, Gear), as.factor)) %>%
-  mutate(Steepness = factor(Steepness, levels = c(0,1,2), labels = c("Low", "Medium", "High"))) %>%
-  mutate(MudDominant = factor(MudDominant, levels = c(0,1), labels = c("False", "True"))) %>%
+dat <- SampleData |>
+  mutate(logEffort = log(Effort)) |>
+  mutate(logEffort = scale(logEffort)[,1], .by = Gear) |>
+  mutate(across(c(Season, Site, Gear), as.factor)) |>
+  mutate(Steepness = factor(Steepness, levels = c(0,1,2), labels = c("Low", "Medium", "High"))) |>
+  mutate(MudDominant = factor(MudDominant, levels = c(0,1), labels = c("False", "True"))) |>
   mutate(Occlusion = scale(Occlusion)[,1], DaylightPercent = scale(DaylightPercent)[,1], SecchiDepth = scale(SecchiDepth)[,1], Temperature = scale(Temperature)[,1])
 
 # Scaled Data Summary (Means & SDs to report)
-ScaleData <- SampleData %>%
-  select(Occlusion:Temperature) %>%
+ScaleData <- SampleData |>
+  select(Occlusion:Temperature) |>
   summarise(across(everything(),
                    .fns = list(Mean = ~ mean(., na.rm = TRUE), SD = ~ sd(., na.rm = TRUE))
-  )) %>%
+  )) |>
   pivot_longer(everything(),
                names_to = c("Predictor", ".value"),
                names_pattern = "(.*)_(.*)"
-  ) %>%
-  group_by(Predictor) %>%
-  summarise(Mean = Mean[1], SD = SD[1]) %>%
-  split(.$Predictor) %>%
+  ) |>
+  group_by(Predictor) |>
+  summarise(Mean = Mean[1], SD = SD[1]) |>
+  (\(df) split(df, df$Predictor))() |>
   purrr::map(~ as.list(.x)[-1])
 
-ScaleDataEffort <- SampleData %>%
-  mutate(logEffort = log(Effort)) %>%
-  group_by(Gear) %>%
+ScaleDataEffort <- SampleData |>
+  mutate(logEffort = log(Effort)) |>
+  group_by(Gear) |>
   summarize(
     Mean = mean(logEffort, na.rm = TRUE),
     SD = sd(logEffort, na.rm = TRUE)
   )
 
 # Effort Mean & SD by Gear
-SummaryData_Effort <- SampleData %>%
-  select(Effort, Gear) %>%
-  group_by(Gear) %>%
+SummaryData_Effort <- SampleData |>
+  select(Effort, Gear) |>
+  group_by(Gear) |>
     summarize(across(where(is.numeric),
                    .fns = list(Mean = ~ mean(., na.rm = TRUE), SD = ~ sd(., na.rm = TRUE))
-  )) %>%
-  ungroup() %>%
+  )) |>
+  ungroup() |>
   pivot_longer(-Gear,
                names_to = c("Predictor", ".value"),
                names_pattern = "(.*)_(.*)"
-  ) %>%
-  group_by(Predictor, Gear) %>%
-  summarise(Mean = Mean[1], SD = SD[1]) %>%
-  pivot_wider(names_from = Gear, values_from = c(Mean, SD)) %>%
-  split(.$Predictor) %>%
+  ) |>
+  group_by(Predictor, Gear) |>
+  summarise(Mean = Mean[1], SD = SD[1]) |>
+  pivot_wider(names_from = Gear, values_from = c(Mean, SD)) |>
+  (\(df) split(df, df$Predictor))() |>
   purrr::map(~ as.list(.x)[-1])
 
 # NA-Free Dataset for Modelling
-geardat <- dat %>%
-  select(Effort, logEffort, Abundance, Richness, Shannon, Simpson, MudDominant, Steepness, Season, Gear, DaylightPercent, SecchiDepth, Occlusion, Temperature, Site) %>%
+geardat <- dat |>
+  select(Effort, logEffort, Abundance, Richness, Shannon, Simpson, MudDominant, Steepness, Season, Gear, DaylightPercent, SecchiDepth, Occlusion, Temperature, Site) |>
   na.omit()
 
 
@@ -530,8 +530,8 @@ check_additive_vif(geardat, tweedie(link="log"), "Simpson")
 #     }
 #   })
 #   
-#   final_table_raw <- as.data.frame(dredge_subset) %>%
-#     rownames_to_column(var = "Model") %>%
+#   final_table_raw <- as.data.frame(dredge_subset) |>
+#     rownames_to_column(var = "Model") |>
 #     mutate(
 #       Predictors = predictor_strings,
 #       Response = response_name,
@@ -543,13 +543,13 @@ check_additive_vif(geardat, tweedie(link="log"), "Simpson")
 #   has_lr_r2 <- "R2.LR" %in% colnames(final_table_raw)
 #   
 #   if (has_glmm_r2) {
-#     final_table_processed <- final_table_raw %>%
+#     final_table_processed <- final_table_raw |>
 #       mutate(
 #         R2_Marginal = r.squaredGLMM1,    # R2m (Fixed effects)
 #         R2_Conditional = r.squaredGLMM2 # R2c (Fixed + Random)
 #       )
 #   } else if (has_lr_r2) {
-#     final_table_processed <- final_table_raw %>%
+#     final_table_processed <- final_table_raw |>
 #       mutate(
 #         R2_Marginal = R2.LR # Pseudo-R2 (Fixed effects)
 #       )
@@ -558,7 +558,7 @@ check_additive_vif(geardat, tweedie(link="log"), "Simpson")
 #   }
 #   
 #   # Select the final, clean set of columns
-#   final_table_clean <- final_table_processed %>%
+#   final_table_clean <- final_table_processed |>
 #     select(
 #       Response, Model, Predictors, df, logLik, AICc, delta, weight, 
 #       any_of(c("R2_Marginal", "R2_Conditional")), # Select them if they exist
@@ -575,95 +575,95 @@ check_additive_vif(geardat, tweedie(link="log"), "Simpson")
 # SimIntTable <- BuildTable(SimIntTest, "Simpson")
 # 
 # # # Build Coefficient tables for top model or averaged model if multiple delta <= 2.0
-# nrow(AbundIntTable %>% filter(delta <= 2)) # Single top model
-# nrow(RichIntTable %>% filter(delta <= 2)) # 7 Similarly parsimonious models
-# nrow(DivIntTable %>% filter(delta <= 2)) # 4 Similarly parsimonious models
-# nrow(SimIntTable %>% filter(delta <= 2)) # Single top model
+# nrow(AbundIntTable |> filter(delta <= 2)) # Single top model
+# nrow(RichIntTable |> filter(delta <= 2)) # 7 Similarly parsimonious models
+# nrow(DivIntTable |> filter(delta <= 2)) # 4 Similarly parsimonious models
+# nrow(SimIntTable |> filter(delta <= 2)) # Single top model
 # 
 # TopAvgCoefs <- bind_rows(
 #   # Abundance Top Model Coefficients (K=68)
-#   coefTable(AbundIntTest[1,]) %>%
-#     as.data.frame() %>%
-#     rownames_to_column(var = "Predictor") %>%
-#     mutate(Response = "Abundance", .before = 1) %>%
+#   coefTable(AbundIntTest[1,]) |>
+#     as.data.frame() |>
+#     rownames_to_column(var = "Predictor") |>
+#     mutate(Response = "Abundance", .before = 1) |>
 #     rename_with(
-#       ~ .x %>%
-#         str_remove("X141.") %>%
-#         str_replace("\\..", ".")) %>%
-#     mutate(Predictor = Predictor %>%
-#              str_remove_all("cond|disp") %>%
-#              str_remove_all("[()]") %>%
-#              str_replace_all(":", "*") %>%
-#              str_replace_all("\\s", "") %>%
-#              str_replace("^Int$", "Intercept")) %>%
-#     select(-df) %>%
-#     mutate(Model = "Top",Response = "Abundance", .before = 1)  %>%
+#       ~ .x |>
+#         str_remove("X141.") |>
+#         str_replace("\\..", ".")) |>
+#     mutate(Predictor = Predictor |>
+#              str_remove_all("cond|disp") |>
+#              str_remove_all("[()]") |>
+#              str_replace_all(":", "*") |>
+#              str_replace_all("\\s", "") |>
+#              str_replace("^Int$", "Intercept")) |>
+#     select(-df) |>
+#     mutate(Model = "Top",Response = "Abundance", .before = 1)  |>
 #     rename("Std. Error" = Std.Error),
 #   
 #   # Richness Avg Model Coefficients
-#   coefTable(model.avg(RichIntTest, subset = delta <= 2 & !nested(.))) %>%
-#     as.data.frame() %>%
-#     rownames_to_column(var = "Predictor") %>%
-#     mutate(Model = "Averaged", Response = "Richness", .before = 1) %>%
-#     mutate(Predictor = Predictor %>%
-#              str_remove_all("cond|disp") %>%
-#              str_remove_all("[()]") %>%
-#              str_replace_all(":", "*") %>%
-#              str_replace_all("\\s", "") %>%
-#              str_replace("^Int$", "Intercept")) %>%
+#   coefTable(model.avg(RichIntTest, subset = delta <= 2 & !nested(.))) |>
+#     as.data.frame() |>
+#     rownames_to_column(var = "Predictor") |>
+#     mutate(Model = "Averaged", Response = "Richness", .before = 1) |>
+#     mutate(Predictor = Predictor |>
+#              str_remove_all("cond|disp") |>
+#              str_remove_all("[()]") |>
+#              str_replace_all(":", "*") |>
+#              str_replace_all("\\s", "") |>
+#              str_replace("^Int$", "Intercept")) |>
 #     select(-df),
 # 
 #   # Shannon Diversity Avg Model Coefficients
-#   coefTable(model.avg(DivIntTest, subset = delta <= 2 & !nested(.))) %>%
-#     as.data.frame() %>%
-#     rownames_to_column(var = "Predictor") %>%
-#     mutate(Model = "Averaged", Response = "Shannon", .before = 1) %>%
-#     mutate(Predictor = Predictor %>%
-#              str_remove_all("cond|disp") %>%
-#              str_remove_all("[()]") %>%
-#              str_replace_all(":", "*") %>%
-#              str_replace_all("\\s", "") %>%
-#              str_replace("^Int$", "Intercept")) %>%
+#   coefTable(model.avg(DivIntTest, subset = delta <= 2 & !nested(.))) |>
+#     as.data.frame() |>
+#     rownames_to_column(var = "Predictor") |>
+#     mutate(Model = "Averaged", Response = "Shannon", .before = 1) |>
+#     mutate(Predictor = Predictor |>
+#              str_remove_all("cond|disp") |>
+#              str_remove_all("[()]") |>
+#              str_replace_all(":", "*") |>
+#              str_replace_all("\\s", "") |>
+#              str_replace("^Int$", "Intercept")) |>
 #     select(-df),
 # 
 #   # Simpson Diversity Top Model Coefficients
-#   coefTable(SimIntTest[1,]) %>%
-#     as.data.frame() %>%
-#     rownames_to_column(var = "Predictor") %>%
-#     mutate(Response = "Simpson", .before = 1) %>%
+#   coefTable(SimIntTest[1,]) |>
+#     as.data.frame() |>
+#     rownames_to_column(var = "Predictor") |>
+#     mutate(Response = "Simpson", .before = 1) |>
 #     rename_with(
-#       ~ .x %>%
-#         str_remove("X1.") %>%
-#         str_replace("\\..", ".")) %>%
-#     mutate(Predictor = Predictor %>%
-#              str_remove_all("cond|disp") %>%
-#              str_remove_all("[()]") %>%
-#              str_replace_all(":", "*") %>%
-#              str_replace_all("\\s", "") %>%
-#              str_replace("^Int$", "Intercept")) %>%
-#     select(-df) %>%
-#     mutate(Model = "Top",Response = "Simpson", .before = 1)  %>%
+#       ~ .x |>
+#         str_remove("X1.") |>
+#         str_replace("\\..", ".")) |>
+#     mutate(Predictor = Predictor |>
+#              str_remove_all("cond|disp") |>
+#              str_remove_all("[()]") |>
+#              str_replace_all(":", "*") |>
+#              str_replace_all("\\s", "") |>
+#              str_replace("^Int$", "Intercept")) |>
+#     select(-df) |>
+#     mutate(Model = "Top",Response = "Simpson", .before = 1)  |>
 #     rename("Std. Error" = Std.Error)
 #   
-# ) %>%
-#   rename(SE = "Std. Error") %>%
+# ) |>
+#   rename(SE = "Std. Error") |>
 #   mutate(LCL = Estimate - (1.96 * SE),
 #          UCL = Estimate + (1.96 * SE),
-#          Sig = if_else((LCL > 0 & UCL > 0) | (LCL < 0 & UCL < 0), "*", "")) %>% 
+#          Sig = if_else((LCL > 0 & UCL > 0) | (LCL < 0 & UCL < 0), "*", "")) |> 
 #   # --- Final Polishing Mutate (as in your working code) ---
 #   mutate(
-#     Predictor = Predictor %>%
-#       str_replace_all("\\*", " * ") %>%
-#       str_replace_all("logEffort", "Effort") %>% 
-#       str_replace_all("GearCentipedeNet", "Centipede Net") %>%
-#       str_replace_all("GearSeine", "Seine") %>%
-#       str_replace_all("DaylightPercent", "Daylight Percent") %>%
-#       str_replace_all("MudDominantTrue", "Mud Dominant") %>%
-#       str_replace_all("SeasonRainy", "Rainy Season") %>%
-#       str_replace_all("SecchiDepth", "Secchi Depth") %>%
-#       str_replace_all("SteepnessMedium", "Steepness (Medium)") %>%
+#     Predictor = Predictor |>
+#       str_replace_all("\\*", " * ") |>
+#       str_replace_all("logEffort", "Effort") |> 
+#       str_replace_all("GearCentipedeNet", "Centipede Net") |>
+#       str_replace_all("GearSeine", "Seine") |>
+#       str_replace_all("DaylightPercent", "Daylight Percent") |>
+#       str_replace_all("MudDominantTrue", "Mud Dominant") |>
+#       str_replace_all("SeasonRainy", "Rainy Season") |>
+#       str_replace_all("SecchiDepth", "Secchi Depth") |>
+#       str_replace_all("SteepnessMedium", "Steepness (Medium)") |>
 #       str_replace_all("SteepnessHigh", "Steepness (High)")
-#   ) %>%
+#   ) |>
 #   
 #   # --- New, Final Sorting Logic ---
 #   mutate(
@@ -673,8 +673,8 @@ check_additive_vif(geardat, tweedie(link="log"), "Simpson")
 #       str_detect(Predictor, "\\*") ~ 3, # All interactions
 #       TRUE ~ 4 # All other main effects
 #     )
-#   ) %>%
-#   arrange(Response, sort_key, Predictor) %>% # Sorts by Response, then your new rules
+#   ) |>
+#   arrange(Response, sort_key, Predictor) |> # Sorts by Response, then your new rules
 #   select(-sort_key) # Remove the helper column
 
 
@@ -697,7 +697,7 @@ check_additive_vif(geardat, tweedie(link="log"), "Simpson")
 # RichIntTop <- get.models(RichIntTest, subset = delta <= 2 & !nested(.))
 # RichIntAvg <- model.avg(RichIntTop, fit = TRUE)
 # # Shannon Diversity Model Averaging
-# DivIntTop <- get.models(DivIntTest, subset = delta <= 2 & !nested(.)) %>%
+# DivIntTop <- get.models(DivIntTest, subset = delta <= 2 & !nested(.)) |>
 #   purrr::keep(~ !is.na(AIC(.)))
 # DivIntAvg <- model.avg(DivIntTop, fit = TRUE)
 # # Simpson Diversity Top Model
@@ -758,7 +758,7 @@ create_plot_data <- function(model, global_model, predictor, grouping_var = NULL
   plot_data <- data.frame(newdata, Predicted = exp(preds$fit), CI_low = exp(preds$fit - 1.96 * preds$se.fit), CI_high = exp(preds$fit + 1.96 * preds$se.fit))
   
   if (is.null(grouping_var)) {
-    plot_data <- plot_data %>% group_by(!!sym(predictor)) %>% summarize(across(c(Predicted, CI_low, CI_high), \(x) mean(x, na.rm = TRUE)))
+    plot_data <- plot_data |> group_by(!!sym(predictor)) |> summarize(across(c(Predicted, CI_low, CI_high), \(x) mean(x, na.rm = TRUE)))
   }
   return(plot_data)
 }
@@ -767,7 +767,7 @@ create_plot_data <- function(model, global_model, predictor, grouping_var = NULL
 # 2. Abundance Figure
 
 # --- Create Component Plots ---
-p_abund_daylight <- estimate_relation(model = AvgMods$AbundInt, by = c("DaylightPercent = [fivenum]", "Gear"), fixed = list(logEffort = 0, Steepness = "Medium"), preserve_range = FALSE) %>%
+p_abund_daylight <- estimate_relation(model = AvgMods$AbundInt, by = c("DaylightPercent = [fivenum]", "Gear"), fixed = list(logEffort = 0, Steepness = "Medium"), preserve_range = FALSE) |>
   ggplot(aes(x = DaylightPercent, y = Predicted, color = Gear, fill = Gear, linetype = Gear)) +
   geom_line(linewidth = 1) + geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2, linetype = 0) +
   labs(title = "Daylight x Gear", subtitle = "", y = "Abundance", x = "Percent Daylight") +
@@ -782,7 +782,7 @@ plot_data_abund_season <- create_plot_data(AvgMods$AbundInt, AbundIntFit, "Seaso
 newdata_effort_abund <- insight::get_datagrid(AvgMods$AbundInt, by = c("logEffort = [fivenum]", "Gear"), preserve_range = FALSE, Steepness = "Medium")
 preds_effort_abund <- predict(AvgMods$AbundInt, newdata = newdata_effort_abund, se.fit = TRUE, type = "link")
 plot_data_effort_abund <- data.frame(newdata_effort_abund, Predicted = exp(preds_effort_abund$fit), CI_low = exp(preds_effort_abund$fit - 1.96 * preds_effort_abund$se.fit), CI_high = exp(preds_effort_abund$fit + 1.96 * preds_effort_abund$se.fit))
-p_abund_effort_list <- c("Cast Net", "Centipede Net", "Seine") %>%
+p_abund_effort_list <- c("Cast Net", "Centipede Net", "Seine") |>
   map(~ {
     gear_name <- .x; main_title <- if (gear_name == "Cast Net") "Effort x Gear" else ""; x_lab <- switch(gear_name, "Cast Net" = "Throws", "Centipede Net" = "Net-Group-Hours", "Seine" = "Hauls"); raw_breaks <- switch(gear_name, "Cast Net" = exp(seq(log(10), log(20), length.out = 5)), "Centipede Net" = exp(seq(log(8), log(19), length.out = 5)), "Seine" = exp(seq(log(1.0), log(2.0), length.out = 5))); x_scale <- create_effort_axis_scale(gear_name, ScaleDataEffort, raw_breaks)
     
@@ -791,7 +791,7 @@ p_abund_effort_list <- c("Cast Net", "Centipede Net", "Seine") %>%
     raw_limits <- range(raw_breaks)
     scaled_limits <- (log(raw_limits) - gear_params$Mean) / gear_params$SD
     
-    filter(plot_data_effort_abund, Gear == gear_name) %>% ggplot(aes(x = logEffort, y = Predicted, color = Gear, fill = Gear)) +
+    filter(plot_data_effort_abund, Gear == gear_name) |> ggplot(aes(x = logEffort, y = Predicted, color = Gear, fill = Gear)) +
       geom_line(linewidth = 1) + geom_ribbon(aes(ymin = CI_low, ymax = CI_high), alpha = 0.2, linetype = 0) +
       labs(title = main_title, subtitle = gear_name, x = x_lab, y = "Abundance\n(log scale)") + x_scale +
       scale_y_log10(breaks = c(1, 5, 25, 125, 625), labels = scales::label_number(accuracy = 1)) +
@@ -814,7 +814,7 @@ newdata_effort_rich <- insight::get_datagrid(AvgMods$RichInt, by = c("logEffort 
 newdata_effort_rich$Site <- NA
 preds_effort_rich <- predict(AvgMods$RichInt, newdata = newdata_effort_rich, se.fit = TRUE, type = "link")
 plot_data_effort_rich <- data.frame(newdata_effort_rich, Predicted = exp(preds_effort_rich$fit), CI_low = exp(preds_effort_rich$fit - 1.96 * preds_effort_rich$se.fit), CI_high = exp(preds_effort_rich$fit + 1.96 * preds_effort_rich$se.fit))
-p_rich_effort_list <- c("Cast Net", "Centipede Net", "Seine") %>%
+p_rich_effort_list <- c("Cast Net", "Centipede Net", "Seine") |>
   map(~ {
     gear_name <- .x; main_title <- if (gear_name == "Cast Net") "Effort x Gear" else ""; x_lab <- switch(gear_name, "Cast Net" = "Throws", "Centipede Net" = "Net-Group-Hours", "Seine" = "Hauls"); raw_breaks <- switch(gear_name, "Cast Net" = exp(seq(log(10), log(20), length.out = 5)), "Centipede Net" = exp(seq(log(8), log(19), length.out = 5)), "Seine" = exp(seq(log(1.0), log(2.0), length.out = 5))); x_scale <- create_effort_axis_scale(gear_name, ScaleDataEffort, raw_breaks)
     
