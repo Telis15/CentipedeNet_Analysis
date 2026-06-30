@@ -627,6 +627,24 @@ Violin_Plot_SL <- ggplot(data = plot_data, aes(x = Gear, y = StandardLength_mm, 
 # Display the plot
 plot(Violin_Plot_SL)
 
+# # --- 3. Save the plot in the correct format for publication ---
+# ggsave(plot = Violin_Plot_SL,
+#        filename = "output/plots/Length_Gear_Violin_SL.eps",
+#        device = cairo_ps,
+#        width = 2.75,
+#        height = 3.66,
+#        units = "in")
+# ggsave(plot = Violin_Plot_SL,
+#        filename = "output/plots/Length_Gear_Violin_SL.png",
+#        width = 2.75,
+#        height = 3.66,
+#        units = "in",
+#        dpi = 600)
+
+# Statistical comparison of Standard Length (SL) among gear types (Option A)
+SL_Model <- lm(StandardLength_mm ~ Gear, data = plot_data)
+print(anova(SL_Model))
+print(summary(SL_Model))
 
 # Catch by Site
 Tables$`Site Catch` <- MergedData |>
